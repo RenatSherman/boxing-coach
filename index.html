@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#111111">
+<title>Boxing Coach</title>
+<link rel="manifest" href='data:application/manifest+json,{"name":"Boxing Coach","short_name":"BoxCoach","start_url":"./","display":"standalone","background_color":"%23111111","theme_color":"%23111111"}'>
+<link rel="stylesheet" href="style.css">
+
+<!-- Внешние библиотеки -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<!-- ЭКРАН ВХОДА -->
+<div id="lockScreen" class="lock-screen">
+  <div class="lock-box">
+    <h1>🥊 Boxing Coach</h1>
+    <div class="lock-tabs">
+      <button id="tabLogin" class="active" onclick="LockScreen.showTab('login')">Вход</button>
+      <button id="tabRegister" onclick="LockScreen.showTab('register')">Регистрация</button>
+    </div>
+    <div id="paneLogin">
+      <p style="color:#ccc;margin:8px 0;font-size:14px">Войдите в свой аккаунт</p>
+      <input id="loginEmail" type="email" placeholder="Email" autocomplete="email">
+      <input id="loginPass" type="password" placeholder="Пароль" autocomplete="current-password">
+      <div id="loginError" class="err"></div>
+      <button class="primary-btn" onclick="LockScreen.doLogin()">Войти</button>
+      <small>Нет аккаунта? Нажмите вкладку «Регистрация»</small>
+    </div>
+    <div id="paneRegister" style="display:none">
+      <p style="color:#ccc;margin:8px 0;font-size:14px">Создайте аккаунт тренера</p>
+      <input id="regEmail" type="email" placeholder="Email" autocomplete="email">
+      <input id="regPass" type="password" placeholder="Пароль (мин. 6 символов)" autocomplete="new-password">
+      <input id="regPass2" type="password" placeholder="Повторите пароль" autocomplete="new-password">
+      <div id="regError" class="err"></div>
+      <button class="primary-btn" onclick="LockScreen.doRegister()">Зарегистрироваться</button>
+      <small>После регистрации данные будут синхронизироваться между всеми устройствами</small>
+    </div>
+  </div>
+</div>
+
+<!-- ОСНОВНОЕ ПРИЛОЖЕНИЕ -->
+<div id="appRoot" style="display:none">
+  <header>
+    <h1>🥊 Boxing Coach</h1>
+    <nav id="mainNav">
+      <button data-tab="dashboard">Дашборд</button>
+      <button data-tab="fighters">Бойцы</button>
+      <button data-tab="reports">Отчёт</button>
+      <button data-tab="compare">Сравнение</button>
+      <button data-tab="exercises">Упражнения и замеры</button>
+      <button data-tab="settings">⚙</button>
+    </nav>
+    <div id="syncBadge" class="sync-badge" title="Статус синхронизации">●</div>
+    <button id="menuToggle" class="menu-toggle">☰</button>
+  </header>
+  <main id="app"></main>
+  <div id="toast" class="toast"></div>
+</div>
+
+<!-- МОДАЛЬНЫЕ ОКНА -->
+<div id="modalRoot"></div>
+
+<!-- ============ СКРИПТЫ ПРИЛОЖЕНИЯ ============ -->
+<!-- Порядок важен: сначала данные и утилиты, затем модули, в конце — сборка -->
+<script src="data.js"></script>
+<script src="fighters.js"></script>
+<script src="calendar.js"></script>
+<script src="reports.js"></script>
+<script src="exercises.js"></script>
+<script src="pdf.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
