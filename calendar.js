@@ -188,20 +188,17 @@ const CoachCalendar = (() => {
           });
         });
 
-        // Агрегируем события (по бойцу или по группе)
         const aggregated = aggregateSlotEvents(events);
 
         html += `<div class="cell" onclick="openAssignTrainingModal(null,'${d.ds}',${h})">`;
         aggregated.forEach(agg => {
-          // Формируем список событий для тултипа
           const tooltip = agg.events.map(ev => {
             const exName = ev.s.blockId ? exerciseName(ev.s.blockId) : 'без упражнения';
             return `${ev.f.name} — ${exName}`;
           }).join('\n');
 
-          // Определяем класс формата (берём из первого события агрегата)
           const modeClass = agg.mode === 'group' && agg.count > 1
-            ? 'group' // групповой формат отображения
+            ? 'group'
             : agg.events[0].s.mode;
 
           html += `<div class="ev ${modeClass}"
@@ -221,11 +218,8 @@ const CoachCalendar = (() => {
   return { render, shiftWeek, thisWeek };
 })();
 
-/* ================== ДЕЙСТВИЯ: КЛИК ПО АГРЕГИРОВАННОЙ ТРЕНИРОВКЕ ==================
-   Показывает список всех бойцов и их тренировок в этом слоте.
-*/
+/* ================== ДЕЙСТВИЯ С ТРЕНИРОВКОЙ В КАЛЕНДАРЕ ТРЕНЕРА ================== */
 window.openAggregatedTraining = (dateStr, hour) => {
-  // Собираем все события в этом слоте
   const events = [];
   DB.fighters.forEach(f => {
     (f.calendar[dateStr] || []).forEach((s, idx) => {
@@ -234,7 +228,6 @@ window.openAggregatedTraining = (dateStr, hour) => {
   });
   if (!events.length) return;
 
-  // Группируем по группам для удобства
   const byGroup = {};
   events.forEach(ev => {
     const key = ev.f.group;

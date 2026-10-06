@@ -11,7 +11,6 @@ const Reports = (() => {
             'Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'][m];
   }
 
-  /* Собрать данные по всем бойцам за месяц */
   function collect(year, month) {
     const rows = DB.fighters.map(f => {
       let total = 0, personal = 0, self = 0, group = 0;
@@ -26,18 +25,26 @@ const Reports = (() => {
           });
         }
       });
-      return { id: f.id, name: f.name, group: f.group, total, personal, self, group };
+      // Посещаемость
+      const att = getAttendanceStatsMonth(f, year, month);
+      return {
+        id: f.id, name: f.name, group: f.group,
+        total, personal, self, group,
+        attTotal: att.total, attPresent: att.present, attPercent: att.percent
+      };
     });
     const sum = rows.reduce((a,r)=>({
       total: a.total + r.total,
       personal: a.personal + r.personal,
       self: a.self + r.self,
-      group: a.group + r.group
-    }), { total:0, personal:0, self:0, group:0 });
+      group: a.group + r.group,
+      attTotal: a.attTotal + r.attTotal,
+      attPresent: a.attPresent + r.attPresent
+    }), { total:0, personal:0, self:0, group:0, attTotal:0, attPresent:0 });
+    sum.attPercent = sum.attTotal ? Math.round(sum.attPresent / sum.attTotal * 100) : 0;
     return { rows, sum };
   }
 
-  /* Количество тренировок по дням месяца */
   function perDay(year, month) {
     const days = new Date(year, month + 1, 0).getDate();
     const arr = Array(days).fill(0);
@@ -52,7 +59,6 @@ const Reports = (() => {
     return arr;
   }
 
-  /* Детальный список тренировок за месяц (для PDF полного отчёта) */
   function allSlots(year, month) {
     const monthStart = new Date(year, month, 1);
     const monthEnd = new Date(year, month + 1, 0, 23, 59, 59);
@@ -82,13 +88,11 @@ const Reports = (() => {
     return list;
   }
 
-  /* Отрисовка вкладки «Отчёт» */
   function render() {
     const { rows, sum } = collect(currentYear, currentMonth);
     const weekData = perDay(currentYear, currentMonth);
     const labels = weekData.map((_,i)=>i+1);
 
-    /* Графики рисуем после вставки HTML */
     setTimeout(() => {
       const ctx = document.getElementById('repDays');
       if (ctx) {
@@ -139,7 +143,9 @@ const Reports = (() => {
         <div class="card"><h3>Всего тренировок</h3><p class="big">${sum.total}</p></div>
         <div class="card"><h3>Персональных</h3><p class="big">${sum.personal}</p></div>
         <div class="card"><h3>Групповых</h3><p class="big">${sum.group}</p></div>
-        <div class="card"><h3>Самостоятельных</h3><p class="big">${sum.self}</p></div>
+        <div class="card"><h3>Посещаемость</h3><p class="big">${sum.attPercent}%</p>
+          <small style="color:#666;">${sum.attPresent} из ${sum.attTotal}</small>
+        </div>
       </div>
 
       <h3>По дням месяца</h3>
@@ -152,7 +158,8 @@ const Reports = (() => {
       <table>
         <tr>
           <th>Боец</th><th>Группа</th><th>Тренировок</th>
-          <th>Индивид.</th><th>Группа</th><th>Самост.</th><th></th>
+          <th>Индивид.</th><th>Группа</th><th>Самост.</th>
+          <th>Посещений</th><th>%</th><th></th>
         </tr>
         ${rows.map(r => `
           <tr>
@@ -162,6 +169,8 @@ const Reports = (() => {
             <td>${r.personal}</td>
             <td>${r.group}</td>
             <td>${r.self}</td>
+            <td>${r.attPresent} / ${r.attTotal}</td>
+            <td>${r.attPercent}%</td>
             <td>
               <button onclick="exportFighterMonthPDF('${r.id}',${currentYear},${currentMonth})">PDF</button>
             </td>
@@ -171,7 +180,6 @@ const Reports = (() => {
     `;
   }
 
-  /* Переключение месяца */
   function shift(d) {
     currentMonth += d;
     if (currentMonth < 0) { currentMonth = 11; currentYear--; }

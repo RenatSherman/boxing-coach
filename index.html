@@ -8,7 +8,6 @@
 <link rel="manifest" href='data:application/manifest+json,{"name":"Boxing Coach","short_name":"BoxCoach","start_url":"./","display":"standalone","background_color":"%23111111","theme_color":"%23111111"}'>
 <link rel="stylesheet" href="style.css">
 
-<!-- Внешние библиотеки -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
@@ -17,7 +16,6 @@
 </head>
 <body>
 
-<!-- ЭКРАН ВХОДА -->
 <div id="lockScreen" class="lock-screen">
   <div class="lock-box">
     <h1>🥊 Boxing Coach</h1>
@@ -45,13 +43,13 @@
   </div>
 </div>
 
-<!-- ОСНОВНОЕ ПРИЛОЖЕНИЕ -->
 <div id="appRoot" style="display:none">
   <header>
     <h1>🥊 Boxing Coach</h1>
     <nav id="mainNav">
       <button data-tab="dashboard">Дашборд</button>
       <button data-tab="fighters">Бойцы</button>
+      <button data-tab="attendance">Отметка</button>
       <button data-tab="reports">Отчёт</button>
       <button data-tab="compare">Сравнение</button>
       <button data-tab="exercises">Упражнения и замеры</button>
@@ -64,14 +62,12 @@
   <div id="toast" class="toast"></div>
 </div>
 
-<!-- МОДАЛЬНЫЕ ОКНА -->
 <div id="modalRoot"></div>
 
-<!-- ============ СКРИПТЫ ПРИЛОЖЕНИЯ ============ -->
-<!-- Порядок важен: сначала данные и утилиты, затем модули, в конце — сборка -->
 <script src="data.js"></script>
 <script src="fighters.js"></script>
 <script src="calendar.js"></script>
+<script src="attendance.js"></script>
 <script src="reports.js"></script>
 <script src="exercises.js"></script>
 <script src="pdf.js"></script>

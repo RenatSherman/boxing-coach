@@ -252,6 +252,7 @@ window.createFighter = () => {
       { id: uid(), date: today, type: 'end', name: 'Конец сезона', data: structuredClone(assess) }
     ],
     measurements: [],
+    attendance: [],
     workPlan: [], calendar: {}, fights: []
   });
   saveData(DB);
@@ -683,6 +684,8 @@ function renderFighterDetail() {
       ${renderWeakPointsCard(f)}
     </div>
 
+    ${renderAttendanceCard(f)}
+
     <h3>Оценки по направлениям (0–${MAX_SCORE})</h3>
     <p style="font-size:13px;color:#666">
       Дата каждой оценки редактируется прямо в шапке таблицы. Для полного редактирования (название, тип, оценки) нажмите ✎ в списке ниже.
@@ -719,6 +722,59 @@ function renderFighterDetail() {
   allMeasurementItems().forEach(m => {
     drawMeasurementChart('meas_chart_' + m.id, f, m.id);
   });
+}
+
+/* ================== КАРТОЧКА «ПОСЕЩАЕМОСТЬ» ================== */
+function renderAttendanceCard(f) {
+  const stats = getAttendanceStats(f);
+  const now = new Date();
+  const monthStats = getAttendanceStatsMonth(f, now.getFullYear(), now.getMonth());
+
+  // Последние 10 отметок
+  const recent = (f.attendance || [])
+    .slice()
+    .sort((a,b) => b.date.localeCompare(a.date))
+    .slice(0, 10);
+
+  const recentHtml = recent.map(a => {
+    const icon = a.present ? '✅' : '❌';
+    const [y, m, d] = a.date.split('-');
+    const label = a.present ? 'Был' : 'Отсутствовал';
+    return `
+      <div class="att-history-item">
+        <span class="att-h-date">${d}.${m}.${y} ${String(a.hour).padStart(2,'0')}:00</span>
+        <span class="att-h-info">${icon} ${label}</span>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="card" style="border-left:4px solid #22c55e;">
+      <h3>Посещаемость</h3>
+      <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); margin-bottom: 12px;">
+        <div style="text-align:center; padding: 10px; background:#f0fdf4; border-radius: 8px;">
+          <div style="font-size: 24px; font-weight: 700; color:#166534;">${stats.present}</div>
+          <div style="font-size: 12px; color:#166534;">Всего посещений</div>
+        </div>
+        <div style="text-align:center; padding: 10px; background:#fef2f2; border-radius: 8px;">
+          <div style="font-size: 24px; font-weight: 700; color:#991b1b;">${stats.absent}</div>
+          <div style="font-size: 12px; color:#991b1b;">Пропусков</div>
+        </div>
+        <div style="text-align:center; padding: 10px; background:#eff6ff; border-radius: 8px;">
+          <div style="font-size: 24px; font-weight: 700; color:#1e40af;">${stats.percent}%</div>
+          <div style="font-size: 12px; color:#1e40af;">Явка</div>
+        </div>
+        <div style="text-align:center; padding: 10px; background:#fefce8; border-radius: 8px;">
+          <div style="font-size: 24px; font-weight: 700; color:#854d0e;">${monthStats.present}/${monthStats.total}</div>
+          <div style="font-size: 12px; color:#854d0e;">В этом месяце</div>
+        </div>
+      </div>
+      ${recent.length ? `
+        <p style="font-size:13px;color:#666;margin:0 0 6px;">Последние отметки</p>
+        <div>${recentHtml}</div>
+      ` : '<p style="font-size:13px;color:#999;">Отметок ещё нет. Отмечайте посещения в разделе «Отметка».</p>'}
+    </div>
+  `;
 }
 
 /* ================== КАРТОЧКА «СЛАБЫЕ СТОРОНЫ» ================== */

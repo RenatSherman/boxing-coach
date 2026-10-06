@@ -2,14 +2,11 @@
    DATA.JS — данные, справочники, облако, авторизация, утилиты
    ============================================================ */
 
-/* ================== SUPABASE CONFIG ================== */
 const SUPABASE_URL = 'https://sfealuhkjpdauycbgsvo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmZWFsdWhranBkYXV5Y2Jnc3ZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyNDkwNjksImV4cCI6MjEwNTgyNTA2OX0.s0srvgtLGWyJgoP64-fDETI01GISpWH_ZRWjs-PaoPw';
 
-/* ================== SCALE ================== */
 const MAX_SCORE = 10;
 
-/* ================== ГРУППЫ БОЙЦОВ ================== */
 const FIGHTER_GROUPS = [
   { key: 'kids_junior', name: 'Младшая группа', short: 'Младшая', isKids: true },
   { key: 'kids_middle', name: 'Средняя группа', short: 'Средняя', isKids: true },
@@ -24,7 +21,6 @@ function groupShort(key) {
   return g ? g.short : '—';
 }
 
-/* ================== Справочники по умолчанию ================== */
 const DEFAULT_DIRECTIONS = [
   { key: 'technique', name: 'Техника',
     criteria: [
@@ -82,8 +78,7 @@ const DEFAULT_MEASUREMENT_GROUPS = [
   ]}
 ];
 
-/* ================== ХРАНИЛИЩЕ ================== */
-const STORE_KEY = 'boxingCoachV17';
+const STORE_KEY = 'boxingCoachV19';
 
 function defaultDB() {
   return {
@@ -95,7 +90,6 @@ function defaultDB() {
   };
 }
 
-/* ================== МИГРАЦИИ ================== */
 function migrateFighterGroups(db) {
   if (!db || !db.fighters) return db;
   db.fighters.forEach(f => {
@@ -108,6 +102,7 @@ function migrateFighterGroups(db) {
 function migrateAssessments(db) {
   if (!db || !db.fighters) return db;
   db.fighters.forEach(f => {
+    if (!Array.isArray(f.attendance)) f.attendance = [];
     if (Array.isArray(f.assessments)) return;
     const arr = [];
     if (f.startSeason) {
@@ -139,7 +134,6 @@ function migrateAssessments(db) {
   return db;
 }
 
-/* ================== ЗАГРУЗКА / СОХРАНЕНИЕ ЛОКАЛЬНО ================== */
 function loadLocal() {
   try {
     const raw = localStorage.getItem(STORE_KEY);
@@ -165,7 +159,6 @@ function saveLocal(d) { localStorage.setItem(STORE_KEY, JSON.stringify(d)); }
 
 let DB = loadLocal();
 
-/* ================== ОБЛАКО (SUPABASE) ================== */
 const Cloud = (() => {
   let supabase = null, enabled = false, userId = null, userEmail = null;
   let badge = null, saveTimer = null, lastRemoteUpdate = 0, realtimeChannel = null;
@@ -320,12 +313,8 @@ const Cloud = (() => {
   };
 })();
 
-function saveData(d) {
-  if (d) DB = d;
-  Cloud.push();
-}
+function saveData(d) { if (d) DB = d; Cloud.push(); }
 
-/* ================== УТИЛИТЫ ================== */
 function uid() { return Math.random().toString(36).slice(2, 10); }
 
 function calcAge(d) {
@@ -357,7 +346,6 @@ function emptyAssess() {
   return obj;
 }
 
-/* Упражнения */
 function allExerciseItems() {
   const res = [];
   DB.exerciseGroups.forEach(g => {
@@ -374,7 +362,6 @@ function exerciseName(id) {
   return e ? e.fullName : '—';
 }
 
-/* Замеры */
 function allMeasurementItems() {
   const res = [];
   DB.measurementGroups.forEach(g => {
@@ -390,7 +377,6 @@ function measurementById(id) {
   return allMeasurementItems().find(m => m.id === id) || null;
 }
 
-/* Оценки */
 function sortAssessments(f) {
   if (!f.assessments) return [];
   return f.assessments.slice().sort((a,b) => a.date.localeCompare(b.date));
@@ -405,7 +391,6 @@ function getEndAssess(f) {
   return list.find(a => a.type === 'end') || last;
 }
 
-/* Замеры бойца */
 function sortMeasurements(f, measureId) {
   if (!f.measurements) return [];
   return f.measurements
@@ -414,14 +399,12 @@ function sortMeasurements(f, measureId) {
     .sort((a,b) => a.date.localeCompare(b.date));
 }
 
-/* Режимы тренировок */
 function modeLabel(m) {
   return m === 'self' ? 'Самостоятельно'
        : m === 'personal' ? 'Индивидуально'
        : 'Группа';
 }
 
-/* Даты */
 function todayStr() { return new Date().toISOString().slice(0,10); }
 function dateStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -432,7 +415,6 @@ function formatDateRu(ds) {
   return `${d}.${m}.${y}`;
 }
 
-/* Уведомления */
 function toast(msg, type='info') {
   const t = document.getElementById('toast');
   if (!t) return;
@@ -442,7 +424,6 @@ function toast(msg, type='info') {
   t._tid = setTimeout(()=>t.className = 'toast', 2500);
 }
 
-/* Забытые бойцы (14+ дней без тренировок) */
 function getForgottenFighters(daysThreshold = 14) {
   const now = Date.now();
   const result = [];
@@ -467,7 +448,6 @@ function getForgottenFighters(daysThreshold = 14) {
   });
 }
 
-/* === Отображение тренировки в календаре бойца === */
 function trainingDisplayName(training, fighter) {
   if (training.blockId) {
     return exerciseName(training.blockId);
@@ -475,7 +455,6 @@ function trainingDisplayName(training, fighter) {
   return fighter ? groupName(fighter.group) : 'Тренировка';
 }
 
-/* === Агрегация событий в ячейке календаря тренера === */
 function aggregateSlotEvents(events) {
   if (!events.length) return [];
 
@@ -509,9 +488,6 @@ function aggregateSlotEvents(events) {
   return result;
 }
 
-/* ================== ШАГ 2: РЕКОМЕНДАЦИИ И ЖУРНАЛ ================== */
-
-/* Маппинг: критерий → ключевые слова упражнений, которые его развивают */
 const CRITERION_TO_EXERCISES = {
   straight:   ['джеб', 'прям'],
   side:       ['хук', 'боков'],
@@ -529,7 +505,6 @@ const CRITERION_TO_EXERCISES = {
   defeat:     ['поражен', 'реакц']
 };
 
-/* Найти упражнения, которые развивают данный критерий */
 function getRecommendationsForCriterion(critKey) {
   const keywords = CRITERION_TO_EXERCISES[critKey] || [];
   if (!keywords.length) return [];
@@ -541,7 +516,6 @@ function getRecommendationsForCriterion(critKey) {
   return found.slice(0, 5);
 }
 
-/* Найти слабые критерии у бойца (по последнему замеру с ненулевыми оценками) */
 function getWeakPoints(f, threshold = 6) {
   const list = sortAssessments(f);
   if (!list.length) return [];
@@ -578,7 +552,6 @@ function getWeakPoints(f, threshold = 6) {
   return weak.slice(0, 5);
 }
 
-/* Последние N тренировок по всем бойцам, отсортированные от свежих к старым */
 function getRecentTrainings(limit = 30) {
   const list = [];
   DB.fighters.forEach(f => {
@@ -604,7 +577,6 @@ function getRecentTrainings(limit = 30) {
   return list.slice(0, limit);
 }
 
-/* Сколько дней прошло с последней тренировки бойца. null = вообще нет тренировок */
 function getLastTrainingDays(f) {
   let lastTs = 0;
   Object.keys(f.calendar || {}).forEach(ds => {
@@ -616,4 +588,168 @@ function getLastTrainingDays(f) {
   });
   if (!lastTs) return null;
   return Math.floor((Date.now() - lastTs) / 86400000);
+}
+
+/* ================== ПОСЕЩАЕМОСТЬ ================== */
+function getTrainingsForDate(ds) {
+  if (!ds) return [];
+  const trainings = [];
+  DB.fighters.forEach(f => {
+    const day = f.calendar && f.calendar[ds] ? f.calendar[ds] : [];
+    day.forEach((s, idx) => {
+      trainings.push({
+        fighterId: f.id,
+        fighterName: f.name,
+        group: f.group,
+        date: ds,
+        hour: s.hour,
+        blockId: s.blockId || '',
+        mode: s.mode || 'group',
+        comment: s.comment || '',
+        idx
+      });
+    });
+  });
+  trainings.sort((a,b) => {
+    if (a.hour !== b.hour) return a.hour - b.hour;
+    return a.fighterName.localeCompare(b.fighterName);
+  });
+  return trainings;
+}
+
+function getTrainingSessions(ds) {
+  const trainings = getTrainingsForDate(ds);
+  const sessions = {};
+
+  trainings.forEach(t => {
+    let key;
+    if (t.mode === 'group') {
+      key = `${t.hour}-group-${t.group}-${t.blockId || 'noex'}`;
+    } else {
+      key = `${t.hour}-${t.mode}-${t.fighterId}-${t.blockId || 'noex'}`;
+    }
+
+    if (!sessions[key]) {
+      sessions[key] = {
+        key,
+        date: ds,
+        hour: t.hour,
+        mode: t.mode,
+        group: t.group,
+        blockId: t.blockId,
+        fighters: []
+      };
+    }
+    sessions[key].fighters.push({
+      id: t.fighterId,
+      name: t.fighterName,
+      group: t.group,
+      idx: t.idx
+    });
+  });
+
+  return Object.values(sessions).sort((a,b) => a.hour - b.hour);
+}
+
+function isAttended(fighter, ds, hour) {
+  if (!fighter.attendance) return null;
+  const rec = fighter.attendance.find(a => a.date === ds && a.hour === hour);
+  if (!rec) return null;
+  return rec.present;
+}
+
+function setAttendance(fighterId, ds, hour, blockId, mode, present) {
+  const f = DB.fighters.find(x => x.id === fighterId);
+  if (!f) return;
+  f.attendance = f.attendance || [];
+  const existing = f.attendance.find(a => a.date === ds && a.hour === hour);
+  if (existing) {
+    existing.present = present;
+    existing.blockId = blockId || existing.blockId;
+    existing.mode = mode || existing.mode;
+  } else {
+    f.attendance.push({
+      date: ds,
+      hour,
+      blockId: blockId || '',
+      mode: mode || '',
+      present
+    });
+  }
+  saveData(DB);
+}
+
+function getAttendanceStats(fighter) {
+  const list = fighter.attendance || [];
+  const total = list.length;
+  const present = list.filter(a => a.present).length;
+  const absent = total - present;
+  const percent = total ? Math.round(present / total * 100) : 0;
+  return { total, present, absent, percent };
+}
+
+function getAttendanceStatsMonth(fighter, year, month) {
+  const list = (fighter.attendance || []).filter(a => {
+    const d = new Date(a.date);
+    return d.getFullYear() === year && d.getMonth() === month;
+  });
+  const total = list.length;
+  const present = list.filter(a => a.present).length;
+  const absent = total - present;
+  const percent = total ? Math.round(present / total * 100) : 0;
+  return { total, present, absent, percent };
+}
+
+function formatSessionText(session) {
+  const date = formatDateRu(session.date);
+  const time = String(session.hour).padStart(2, '0') + ':00';
+  const modeLabelStr = modeLabel(session.mode);
+  const groupTitle = session.mode === 'group'
+    ? groupName(session.group)
+    : (session.fighters[0] ? session.fighters[0].name : '');
+
+  const present = [];
+  const absent = [];
+  session.fighters.forEach(f => {
+    const fighter = DB.fighters.find(x => x.id === f.id);
+    if (!fighter) return;
+    const st = isAttended(fighter, session.date, session.hour);
+    if (st === true) present.push(f.name);
+    else if (st === false) absent.push(f.name);
+    else absent.push(f.name + ' (?)');
+  });
+
+  const lines = [];
+  lines.push(`Тренировка ${date}, ${time}`);
+  if (session.mode === 'group') {
+    lines.push(`Группа: ${groupName(session.group)}`);
+  } else {
+    lines.push(`Формат: ${modeLabelStr}`);
+  }
+  if (session.blockId) {
+    lines.push(`Упражнение: ${exerciseName(session.blockId)}`);
+  }
+  lines.push('');
+
+  if (present.length) {
+    lines.push(`Присутствовали (${present.length}):`);
+    present.forEach((n, i) => lines.push(`${i+1}. ${n}`));
+    lines.push('');
+  }
+  if (absent.length) {
+    lines.push(`Отсутствовали (${absent.length}):`);
+    absent.forEach((n, i) => lines.push(`${i+1}. ${n}`));
+  }
+
+  lines.push('');
+  lines.push(`Тренер: ${DB.settings.coachName || '—'}`);
+
+  return lines.join('\n');
+}
+
+function formatDayText(ds) {
+  const sessions = getTrainingSessions(ds);
+  if (!sessions.length) return 'На эту дату тренировок нет.';
+  const parts = sessions.map(s => formatSessionText(s));
+  return parts.join('\n\n────────────\n\n');
 }

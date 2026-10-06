@@ -1,9 +1,7 @@
 /* ============================================================
    EXERCISES.JS — раздел «Упражнения и замеры»
-   Две вкладки: упражнения (для тренировок) и замеры (для замеров)
    ============================================================ */
 
-/* ================== ГЛАВНЫЙ ЭКРАН РАЗДЕЛА ================== */
 function renderExercisesAndMeasurements() {
   const tab = state.exTab || 'exercises';
   app.innerHTML = `
@@ -16,7 +14,6 @@ function renderExercisesAndMeasurements() {
   `;
 }
 
-/* ================== ВКЛАДКА «УПРАЖНЕНИЯ» ================== */
 function renderExercisesTab() {
   return `
     <p style="font-size:13px;color:#666">
@@ -43,7 +40,6 @@ function renderExercisesTab() {
   `;
 }
 
-/* ================== ВКЛАДКА «ЗАМЕРЫ» ================== */
 function renderMeasurementsTab() {
   return `
     <p style="font-size:13px;color:#666">
@@ -71,7 +67,6 @@ function renderMeasurementsTab() {
   `;
 }
 
-/* ================== ДЕЙСТВИЯ: БЛОКИ УПРАЖНЕНИЙ ================== */
 window.addExerciseGroup = () => {
   const name = prompt('Название блока:'); if (!name) return;
   DB.exerciseGroups.push({ key: 'g_' + uid(), name, exercises: [] });
@@ -86,8 +81,6 @@ window.deleteExerciseGroup = (gi) => {
   DB.exerciseGroups.splice(gi, 1);
   saveData(DB); render();
 };
-
-/* ================== ДЕЙСТВИЯ: УПРАЖНЕНИЯ ================== */
 window.addExercise = (gi) => {
   const name = prompt('Название упражнения:'); if (!name) return;
   DB.exerciseGroups[gi].exercises.push({ id: uid(), name });
@@ -106,7 +99,6 @@ window.deleteExercise = (gi, ei) => {
   saveData(DB); render();
 };
 
-/* ================== ДЕЙСТВИЯ: ГРУППЫ ЗАМЕРОВ ================== */
 window.addMeasurementGroup = () => {
   const name = prompt('Название группы замеров:'); if (!name) return;
   DB.measurementGroups.push({ key: 'mg_' + uid(), name, measurements: [] });
@@ -124,8 +116,6 @@ window.deleteMeasurementGroup = (gi) => {
   DB.measurementGroups.splice(gi, 1);
   saveData(DB); render();
 };
-
-/* ================== ДЕЙСТВИЯ: ЗАМЕРЫ ================== */
 window.addMeasurement = (gi) => {
   const name = prompt('Название замера:'); if (!name) return;
   const unit = prompt('Единица измерения (раз/сек/кг):', 'раз') || 'раз';

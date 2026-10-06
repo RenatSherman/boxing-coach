@@ -2,13 +2,24 @@
    APP.JS — роутинг, окна, дашборд, сравнение, настройки, init
    ============================================================ */
 
-/* ================== ГЛОБАЛЬНОЕ СОСТОЯНИЕ ================== */
 const app = document.getElementById('app');
 const state = { tab: 'dashboard', currentFighter: null, exTab: 'exercises' };
 
 /* ================== НАВИГАЦИЯ ================== */
+function setActiveTab(tab) {
+  document.querySelectorAll('#mainNav button').forEach(x => {
+    x.classList.toggle('active', x.dataset.tab === tab);
+  });
+}
+
 document.querySelectorAll('#mainNav button').forEach(b => {
-  b.onclick = () => { state.tab = b.dataset.tab; render(); toggleMenu(false); };
+  b.onclick = () => {
+    state.tab = b.dataset.tab;
+    state.currentFighter = null;
+    setActiveTab(state.tab);
+    render();
+    toggleMenu(false);
+  };
 });
 document.getElementById('menuToggle').onclick = () => toggleMenu();
 function toggleMenu(force) {
@@ -82,12 +93,37 @@ window.LockScreen = LockScreen;
 
 /* ================== РОУТИНГ ================== */
 function render() {
-  if (state.tab === 'dashboard') renderDashboard();
-  else if (state.tab === 'fighters') renderFighters();
-  else if (state.tab === 'reports') app.innerHTML = Reports.render();
-  else if (state.tab === 'compare') renderCompare();
-  else if (state.tab === 'exercises') renderExercisesAndMeasurements();
-  else if (state.tab === 'settings') renderSettings();
+  try {
+    if (state.tab === 'dashboard') renderDashboard();
+    else if (state.tab === 'fighters') renderFighters();
+    else if (state.tab === 'attendance') {
+      if (typeof Attendance === 'undefined') {
+        app.innerHTML = `
+          <h2>Отметка тренировки</h2>
+          <div class="card" style="border-left:4px solid #dc2626;background:#fef2f2;">
+            <b style="color:#991b1b;">Модуль attendance.js не загружен.</b>
+            <p style="color:#666;font-size:14px;margin:8px 0 0;">
+              Проверьте, что файл <code>attendance.js</code> существует и подключён в <code>index.html</code>
+              перед <code>app.js</code>. Затем обновите страницу (Ctrl+F5).
+            </p>
+          </div>`;
+      } else {
+        Attendance.render();
+      }
+    }
+    else if (state.tab === 'reports') app.innerHTML = Reports.render();
+    else if (state.tab === 'compare') renderCompare();
+    else if (state.tab === 'exercises') renderExercisesAndMeasurements();
+    else if (state.tab === 'settings') renderSettings();
+  } catch (e) {
+    console.error('[render] Ошибка:', e);
+    app.innerHTML = `
+      <div class="card" style="border-left:4px solid #dc2626;background:#fef2f2;">
+        <h3 style="margin-top:0;color:#991b1b;">Ошибка в разделе «${state.tab}»</h3>
+        <p style="color:#666;">${e.message || 'Неизвестная ошибка'}</p>
+        <pre style="background:#fff;padding:10px;border-radius:6px;font-size:12px;overflow:auto;">${(e.stack || '').split('\n').slice(0,5).join('\n')}</pre>
+      </div>`;
+  }
 }
 
 /* ================== ДАШБОРД ================== */
@@ -105,8 +141,24 @@ function renderDashboard() {
   const forgotten = getForgottenFighters(14);
   const recent = getRecentTrainings(15);
 
+  const today = todayStr();
+  const todaySessions = getTrainingSessions(today);
+
   app.innerHTML = `
     <h2>Дашборд</h2>
+
+    ${todaySessions.length ? `
+      <div class="card" style="border-left:4px solid #22c55e;background:#f0fdf4;">
+        <h3>📅 Сегодня тренировки (${todaySessions.length})</h3>
+        <p style="font-size:13px;color:#166534;margin:0 0 8px;">
+          Не забудьте отметить посещения.
+        </p>
+        <button class="success" onclick="state.tab='attendance';Attendance.setToday();setActiveTab('attendance');render()">
+          Перейти к отметке
+        </button>
+      </div>
+    ` : ''}
+
     <div class="grid">
       <div class="card"><h3>Младшая группа</h3><p class="big">${kidsJunior.length}</p></div>
       <div class="card"><h3>Средняя группа</h3><p class="big">${kidsMiddle.length}</p></div>
@@ -149,7 +201,6 @@ function renderDashboard() {
   if (DB.settings.notifications) Calendar.requestPerm();
 }
 
-/* ================== ЖУРНАЛ ПОСЛЕДНИХ ТРЕНИРОВОК ================== */
 function renderRecentTrainingsCard(recent) {
   if (!recent.length) {
     return `
@@ -195,7 +246,6 @@ function renderRecentTrainingsCard(recent) {
   `;
 }
 
-/* ================== ГРАФИК ДАШБОРДА ================== */
 function drawDashChart() {
   const ctx = document.getElementById('dashChart');
   if (!ctx || !DB.fighters.length) return;
@@ -344,7 +394,6 @@ window.logoutCloud = async () => {
 
 window.updSetting = (k, v) => { DB.settings[k] = v; saveData(DB); };
 
-/* Направления и критерии */
 window.addDirection = () => {
   const name = prompt('Название направления:'); if (!name) return;
   const newDir = { key: 'd_' + uid(), name, criteria: [] };
@@ -396,7 +445,6 @@ window.deleteCriterion = (di, ci) => {
   saveData(DB); render();
 };
 
-/* ================== ЭКСПОРТ / ИМПОРТ JSON ================== */
 window.exportAllJSON = () => {
   const blob = new Blob([JSON.stringify(DB, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
@@ -429,11 +477,11 @@ window.importAllJSON = (event) => {
 /* ================== ИНИЦИАЛИЗАЦИЯ ================== */
 LockScreen.init();
 Cloud.init();
+setActiveTab('dashboard');
 
-/* ================== PWA SERVICE WORKER ================== */
 if ('serviceWorker' in navigator) {
   const swCode = `
-    const CACHE = 'boxcoach-v17';
+    const CACHE = 'boxcoach-v19';
     self.addEventListener('install', e => self.skipWaiting());
     self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
     self.addEventListener('fetch', e => {

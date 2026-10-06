@@ -2,7 +2,6 @@
    PDF.JS — экспорт в PDF (тренер, боец, отчёты)
    ============================================================ */
 
-/* ================== ШРИФТ ДЛЯ PDF (кириллица) ================== */
 const PDF_FONT_NAME = 'PTSans';
 let pdfFontLoaded = false;
 let pdfFontBase64 = null;
@@ -43,7 +42,6 @@ async function setupPdfFont(doc) {
   }
 }
 
-/* ================== ХЕЛПЕРЫ РЕНДЕРА ГРАФИКОВ ================== */
 function canvasToPng(canvas) {
   try { return canvas.toDataURL('image/png'); } catch (e) { return null; }
 }
@@ -146,7 +144,6 @@ async function renderLineChartForPDF(labels, values, datasetLabel, color) {
   }, 800, 280);
 }
 
-/* Хелпер: есть ли у бойца хоть одна ненулевая оценка в замере */
 function assessHasAnyValue(a) {
   let has = false;
   DB.directions.forEach(d => {
@@ -155,7 +152,6 @@ function assessHasAnyValue(a) {
   return has;
 }
 
-/* Хелпер: список тренировок бойца — от сегодня до конца следующего месяца */
 function getUpcomingTrainings(f) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const endOfNextMonth = new Date(today.getFullYear(), today.getMonth() + 2, 0, 23, 59, 59);
@@ -175,7 +171,6 @@ function getUpcomingTrainings(f) {
   return { items: upcoming, periodStart: today, periodEnd: endOfNextMonth };
 }
 
-/* ================== PDF ДЛЯ ТРЕНЕРА (ПОЛНЫЙ) ================== */
 window.exportFighterPDF = async (id) => {
   const f = DB.fighters.find(x => x.id === id);
   if (!f) return;
@@ -285,6 +280,14 @@ window.exportFighterPDF = async (id) => {
     txt('Нет данных', M, y); y += 6;
   }
 
+  // Посещаемость
+  checkPage(30);
+  setFont(12, 'bold');
+  txt('Посещаемость', M, y); y += 6;
+  const att = getAttendanceStats(f);
+  setFont(10);
+  txt(`Всего посещений: ${att.present}  •  Пропусков: ${att.absent}  •  Явка: ${att.percent}%`, M, y); y += 6;
+
   checkPage(30);
   setFont(12, 'bold');
   txt('План работы', M, y); y += 6;
@@ -351,7 +354,6 @@ window.exportFighterPDF = async (id) => {
   doc.save(`${f.name}_полный.pdf`);
 };
 
-/* ================== PDF ДЛЯ БОЙЦА (КОМПАКТНЫЙ) ================== */
 window.exportFighterShortPDF = async (id) => {
   const f = DB.fighters.find(x => x.id === id);
   if (!f) return;
@@ -401,7 +403,6 @@ window.exportFighterShortPDF = async (id) => {
     y += imgH + 8;
   }
 
-  /* Оценки — показываем только заполненные замеры */
   checkPage(40);
   setFont(13, 'bold');
   txt('Оценки по направлениям', M, y); y += 6;
@@ -453,7 +454,6 @@ window.exportFighterShortPDF = async (id) => {
     y = doc.lastAutoTable.finalY + 8;
   }
 
-  /* Замеры — графики */
   const measures = allMeasurementItems();
   const hasMeasureData = measures.some(m => sortMeasurements(f, m.id).length > 0);
   if (hasMeasureData) {
@@ -486,7 +486,6 @@ window.exportFighterShortPDF = async (id) => {
     }
   }
 
-  /* План тренировок: от сегодня до конца следующего месяца */
   checkPage(30);
   setFont(13, 'bold');
   txt('План тренировок', M, y); y += 6;
@@ -518,7 +517,6 @@ window.exportFighterShortPDF = async (id) => {
   doc.save(`${f.name}_карточка_бойца.pdf`);
 };
 
-/* ================== PDF — ОТЧЁТ ЗА МЕСЯЦ ПО БОЙЦУ ================== */
 window.exportFighterMonthPDF = async (id, year, month) => {
   const f = DB.fighters.find(x => x.id === id);
   if (!f) return;
@@ -570,11 +568,13 @@ window.exportFighterMonthPDF = async (id, year, month) => {
   }
 
   setFont(11, 'bold');
-  doc.text(`Итого тренировок: ${total}`, M, y);
+  doc.text(`Итого тренировок: ${total}`, M, y); y += 6;
+  const att = getAttendanceStatsMonth(f, year, month);
+  doc.text(`Посещаемость: ${att.present} из ${att.total} (${att.percent}%)`, M, y);
+
   doc.save(`${f.name}_${month+1}_${year}.pdf`);
 };
 
-/* ================== PDF — КРАТКИЙ ОБЩИЙ ОТЧЁТ ================== */
 window.exportReportPDF = async (year, month) => {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -592,13 +592,14 @@ window.exportReportPDF = async (year, month) => {
   setFont(16, 'bold');
   doc.text(`Отчёт за ${month+1}.${year}`, M, y); y += 8;
   setFont(11);
-  doc.text(`Всего: ${sum.total} | Индивид.: ${sum.personal} | Группа: ${sum.group} | Самост.: ${sum.self}`, M, y); y += 8;
+  doc.text(`Всего: ${sum.total} | Индивид.: ${sum.personal} | Группа: ${sum.group} | Самост.: ${sum.self}`, M, y); y += 6;
+  doc.text(`Посещаемость: ${sum.attPresent} из ${sum.attTotal} (${sum.attPercent}%)`, M, y); y += 8;
 
   if (doc.autoTable) {
     doc.autoTable({
       startY: y,
-      head: [['Боец', 'Группа', 'Всего', 'Индивид.', 'Группа', 'Самост.']],
-      body: rows.map(r => [r.name, groupShort(r.group), r.total, r.personal, r.group, r.self]),
+      head: [['Боец', 'Группа', 'Всего', 'Индивид.', 'Группа', 'Самост.', 'Посещений', '%']],
+      body: rows.map(r => [r.name, groupShort(r.group), r.total, r.personal, r.group, r.self, `${r.attPresent}/${r.attTotal}`, `${r.attPercent}%`]),
       styles: { font: FONT, fontSize: 9, cellPadding: 2, textColor: [17,17,17] },
       headStyles: { fillColor: [17,17,17], textColor: 255, fontSize: 9, font: FONT, fontStyle: 'normal' },
       margin: { left: M, right: M }
@@ -607,7 +608,6 @@ window.exportReportPDF = async (year, month) => {
   doc.save(`report_${month+1}_${year}.pdf`);
 };
 
-/* ================== PDF — ПОЛНЫЙ ОТЧЁТ ТРЕНЕРА ЗА МЕСЯЦ ================== */
 window.exportMonthReportFullPDF = async (year, month) => {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -651,7 +651,8 @@ window.exportMonthReportFullPDF = async (year, month) => {
         ['Индивидуальных', String(sum.personal)],
         ['Групповых', String(sum.group)],
         ['Самостоятельных', String(sum.self)],
-        ['Количество бойцов', String(DB.fighters.length)]
+        ['Количество бойцов', String(DB.fighters.length)],
+        ['Посещаемость', `${sum.attPresent} из ${sum.attTotal} (${sum.attPercent}%)`]
       ],
       styles: { font: FONT, fontSize: 10, cellPadding: 2, textColor: [17,17,17] },
       headStyles: { fillColor: [230, 57, 70], textColor: 255, fontSize: 10, font: FONT, fontStyle: 'normal' },
@@ -671,12 +672,14 @@ window.exportMonthReportFullPDF = async (year, month) => {
       String(r.total),
       String(r.personal),
       String(r.group),
-      String(r.self)
+      String(r.self),
+      `${r.attPresent}/${r.attTotal}`,
+      `${r.attPercent}%`
     ]);
     doc.autoTable({
       startY: y,
-      head: [['Боец', 'Группа', 'Всего', 'Индивид.', 'Группа', 'Самост.']],
-      body: body.length ? body : [['Нет данных','','','','','']],
+      head: [['Боец', 'Группа', 'Всего', 'Индивид.', 'Группа', 'Самост.', 'Посещ.', '%']],
+      body: body.length ? body : [['Нет данных','','','','','','','']],
       styles: { font: FONT, fontSize: 9, cellPadding: 2, textColor: [17,17,17] },
       headStyles: { fillColor: [74, 144, 226], textColor: 255, fontSize: 9, font: FONT, fontStyle: 'normal' },
       margin: { left: M, right: M }
@@ -715,4 +718,33 @@ window.exportMonthReportFullPDF = async (year, month) => {
   }
 
   doc.save(`Отчёт_тренера_${month+1}_${year}.pdf`);
+};
+
+window.exportAllJSON = () => {
+  const blob = new Blob([JSON.stringify(DB, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `boxcoach_backup_${Date.now()}.json`;
+  a.click();
+};
+
+window.importAllJSON = (event) => {
+  const file = event.target.files[0]; if (!file) return;
+  const r = new FileReader();
+  r.onload = e => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      if (!parsed.fighters) throw new Error('bad format');
+      DB = parsed;
+      if (!DB.directions) DB.directions = structuredClone(DEFAULT_DIRECTIONS);
+      if (!DB.exerciseGroups) DB.exerciseGroups = structuredClone(DEFAULT_EXERCISE_GROUPS);
+      if (!DB.measurementGroups) DB.measurementGroups = structuredClone(DEFAULT_MEASUREMENT_GROUPS);
+      migrateFighterGroups(DB);
+      migrateAssessments(DB);
+      saveData(DB);
+      toast('Импорт выполнен', 'ok');
+      render();
+    } catch(err) { toast('Ошибка импорта: ' + err.message, 'error'); }
+  };
+  r.readAsText(file);
 };

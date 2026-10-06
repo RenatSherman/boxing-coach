@@ -46,6 +46,7 @@ header h1 { font-size: 18px; margin: 0; white-space: nowrap; }
   padding: 6px 12px; cursor: pointer; border-radius: 6px; font-size: 14px;
 }
 #mainNav button:hover { background: #e63946; border-color: #e63946; }
+#mainNav button.active { background: #e63946; border-color: #e63946; }
 
 .menu-toggle { display: none; background: none; color: #fff; border: 0; font-size: 22px; }
 
@@ -75,6 +76,8 @@ button {
 button:hover { opacity: .85; }
 button.danger { background: #e63946; }
 button.small { padding: 4px 8px; font-size: 12px; }
+button.success { background: #22c55e; }
+button.ghost { background: #eee; color: #111; }
 
 .row { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
 .actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
@@ -397,6 +400,81 @@ button.small { padding: 4px 8px; font-size: 12px; }
 .journal-item .j-mode.personal { background: #FCE7F3; color: #831843; }
 .journal-item .j-mode.group { background: #DBEAFE; color: #1E3A8A; }
 
+/* ===== Шаг 3: Отметка тренировки (attendance) ===== */
+.att-toolbar {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  margin: 10px 0 16px;
+}
+.att-toolbar label { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+
+.att-list { display: flex; flex-direction: column; gap: 12px; }
+.att-card {
+  background: #fff; border-radius: 10px; padding: 14px 16px;
+  border-left: 4px solid #3B82F6;
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+}
+.att-card.done { border-left-color: #22c55e; }
+.att-card-header {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 10px; flex-wrap: wrap; margin-bottom: 10px;
+}
+.att-card-header h3 { margin: 0; font-size: 16px; }
+.att-card-header .att-time {
+  font-size: 13px; color: #666; font-weight: 600;
+}
+.att-card-header .att-badge {
+  display: inline-block; padding: 3px 10px; border-radius: 10px;
+  font-size: 12px; font-weight: 600;
+  background: #e5e7eb; color: #374151;
+}
+.att-card.done .att-badge { background: #dcfce7; color: #166534; }
+
+.att-summary {
+  font-size: 13px; color: #666; margin-bottom: 10px;
+}
+.att-summary b { color: #111; }
+
+.att-actions {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;
+}
+.att-actions button { font-size: 13px; padding: 6px 12px; }
+
+.att-checklist {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 6px;
+  margin: 10px 0;
+}
+.att-check-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border-radius: 8px;
+  background: #fafafa; border: 1px solid #eee;
+  cursor: pointer;
+  transition: background .12s;
+  user-select: none;
+}
+.att-check-item:hover { background: #f5f5f5; }
+.att-check-item input[type=checkbox] {
+  width: 18px; height: 18px; accent-color: #22c55e;
+  cursor: pointer;
+}
+.att-check-item.checked { background: #f0fdf4; border-color: #86efac; }
+.att-check-item .att-name { flex: 1; font-size: 14px; }
+.att-check-item .att-group {
+  font-size: 11px; color: #888;
+}
+
+/* Компактный вариант для истории */
+.att-history-item {
+  display: flex; justify-content: space-between; gap: 10px;
+  padding: 8px 10px; font-size: 13px; border-bottom: 1px solid #f0f0f0;
+}
+.att-history-item:last-child { border-bottom: 0; }
+.att-history-item .att-h-date {
+  flex-shrink: 0; color: #666; min-width: 80px;
+}
+.att-history-item .att-h-info b { color: #111; }
+
 /* ===== Мобильная адаптация ===== */
 @media (max-width: 720px) {
   header { padding: 8px 12px; }
@@ -414,4 +492,5 @@ button.small { padding: 4px 8px; font-size: 12px; }
   table { font-size: 12px; }
   th, td { padding: 6px; }
   .coach-cal { grid-template-columns: 50px repeat(7, minmax(120px, 1fr)); }
+  .att-checklist { grid-template-columns: 1fr; }
 }
