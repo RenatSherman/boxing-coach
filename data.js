@@ -2,11 +2,14 @@
    DATA.JS — данные, справочники, облако, авторизация, утилиты
    ============================================================ */
 
+/* ================== SUPABASE CONFIG ================== */
 const SUPABASE_URL = 'https://sfealuhkjpdauycbgsvo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmZWFsdWhranBkYXV5Y2Jnc3ZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyNDkwNjksImV4cCI6MjEwNTgyNTA2OX0.s0srvgtLGWyJgoP64-fDETI01GISpWH_ZRWjs-PaoPw';
 
+/* ================== SCALE ================== */
 const MAX_SCORE = 10;
 
+/* ================== ГРУППЫ БОЙЦОВ ================== */
 const FIGHTER_GROUPS = [
   { key: 'kids_junior', name: 'Младшая группа', short: 'Младшая', isKids: true },
   { key: 'kids_middle', name: 'Средняя группа', short: 'Средняя', isKids: true },
@@ -21,6 +24,7 @@ function groupShort(key) {
   return g ? g.short : '—';
 }
 
+/* ================== Справочники по умолчанию ================== */
 const DEFAULT_DIRECTIONS = [
   { key: 'technique', name: 'Техника',
     criteria: [
@@ -78,6 +82,7 @@ const DEFAULT_MEASUREMENT_GROUPS = [
   ]}
 ];
 
+/* ================== ХРАНИЛИЩЕ ================== */
 const STORE_KEY = 'boxingCoachV19';
 
 function defaultDB() {
@@ -90,6 +95,7 @@ function defaultDB() {
   };
 }
 
+/* ================== МИГРАЦИИ ================== */
 function migrateFighterGroups(db) {
   if (!db || !db.fighters) return db;
   db.fighters.forEach(f => {
@@ -134,6 +140,7 @@ function migrateAssessments(db) {
   return db;
 }
 
+/* ================== ЗАГРУЗКА / СОХРАНЕНИЕ ЛОКАЛЬНО ================== */
 function loadLocal() {
   try {
     const raw = localStorage.getItem(STORE_KEY);
@@ -159,6 +166,7 @@ function saveLocal(d) { localStorage.setItem(STORE_KEY, JSON.stringify(d)); }
 
 let DB = loadLocal();
 
+/* ================== ОБЛАКО (SUPABASE) ================== */
 const Cloud = (() => {
   let supabase = null, enabled = false, userId = null, userEmail = null;
   let badge = null, saveTimer = null, lastRemoteUpdate = 0, realtimeChannel = null;
@@ -313,8 +321,12 @@ const Cloud = (() => {
   };
 })();
 
-function saveData(d) { if (d) DB = d; Cloud.push(); }
+function saveData(d) {
+  if (d) DB = d;
+  Cloud.push();
+}
 
+/* ================== УТИЛИТЫ ================== */
 function uid() { return Math.random().toString(36).slice(2, 10); }
 
 function calcAge(d) {
@@ -346,6 +358,7 @@ function emptyAssess() {
   return obj;
 }
 
+/* Упражнения */
 function allExerciseItems() {
   const res = [];
   DB.exerciseGroups.forEach(g => {
@@ -362,6 +375,7 @@ function exerciseName(id) {
   return e ? e.fullName : '—';
 }
 
+/* Замеры */
 function allMeasurementItems() {
   const res = [];
   DB.measurementGroups.forEach(g => {
@@ -377,6 +391,7 @@ function measurementById(id) {
   return allMeasurementItems().find(m => m.id === id) || null;
 }
 
+/* Оценки */
 function sortAssessments(f) {
   if (!f.assessments) return [];
   return f.assessments.slice().sort((a,b) => a.date.localeCompare(b.date));
@@ -391,6 +406,7 @@ function getEndAssess(f) {
   return list.find(a => a.type === 'end') || last;
 }
 
+/* Замеры бойца */
 function sortMeasurements(f, measureId) {
   if (!f.measurements) return [];
   return f.measurements
@@ -399,12 +415,14 @@ function sortMeasurements(f, measureId) {
     .sort((a,b) => a.date.localeCompare(b.date));
 }
 
+/* Режимы тренировок */
 function modeLabel(m) {
   return m === 'self' ? 'Самостоятельно'
        : m === 'personal' ? 'Индивидуально'
        : 'Группа';
 }
 
+/* Даты */
 function todayStr() { return new Date().toISOString().slice(0,10); }
 function dateStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -415,6 +433,7 @@ function formatDateRu(ds) {
   return `${d}.${m}.${y}`;
 }
 
+/* Уведомления */
 function toast(msg, type='info') {
   const t = document.getElementById('toast');
   if (!t) return;
@@ -424,6 +443,7 @@ function toast(msg, type='info') {
   t._tid = setTimeout(()=>t.className = 'toast', 2500);
 }
 
+/* Забытые бойцы */
 function getForgottenFighters(daysThreshold = 14) {
   const now = Date.now();
   const result = [];
@@ -448,6 +468,7 @@ function getForgottenFighters(daysThreshold = 14) {
   });
 }
 
+/* Отображение тренировки в календаре бойца */
 function trainingDisplayName(training, fighter) {
   if (training.blockId) {
     return exerciseName(training.blockId);
@@ -455,6 +476,7 @@ function trainingDisplayName(training, fighter) {
   return fighter ? groupName(fighter.group) : 'Тренировка';
 }
 
+/* Агрегация событий */
 function aggregateSlotEvents(events) {
   if (!events.length) return [];
 
@@ -487,6 +509,8 @@ function aggregateSlotEvents(events) {
 
   return result;
 }
+
+/* ================== РЕКОМЕНДАЦИИ И ЖУРНАЛ ================== */
 
 const CRITERION_TO_EXERCISES = {
   straight:   ['джеб', 'прям'],
@@ -590,22 +614,28 @@ function getLastTrainingDays(f) {
   return Math.floor((Date.now() - lastTs) / 86400000);
 }
 
-/* ================== ПОСЕЩАЕМОСТЬ ================== */
+/* ================== ПОСЕЩАЕМОСТЬ (ATTENDANCE) ==================
+   fighter.attendance = [
+     { date, hour, blockId, mode, present, guest: true|undefined },
+     ...
+   ]
+   guest: true — отметка внепланового бойца (пришёл не из этой группы).
+*/
+
 function getTrainingsForDate(ds) {
-  if (!ds) return [];
   const trainings = [];
   DB.fighters.forEach(f => {
-    const day = f.calendar && f.calendar[ds] ? f.calendar[ds] : [];
-    day.forEach((s, idx) => {
+    (f.calendar[ds] || []).forEach((s, idx) => {
       trainings.push({
         fighterId: f.id,
         fighterName: f.name,
         group: f.group,
         date: ds,
         hour: s.hour,
-        blockId: s.blockId || '',
-        mode: s.mode || 'group',
+        blockId: s.blockId,
+        mode: s.mode,
         comment: s.comment || '',
+        isGuest: !!s.guest,
         idx
       });
     });
@@ -624,9 +654,13 @@ function getTrainingSessions(ds) {
   trainings.forEach(t => {
     let key;
     if (t.mode === 'group') {
-      key = `${t.hour}-group-${t.group}-${t.blockId || 'noex'}`;
+      // Ключ сессии — час + группа, но только для НЕ гостей.
+      // Если гость — он попадает в отдельную сессию, чтобы не смешивать с основной группой.
+      key = t.isGuest
+        ? `${t.hour}-guest-${t.fighterId}`
+        : `${t.hour}-group-${t.group}`;
     } else {
-      key = `${t.hour}-${t.mode}-${t.fighterId}-${t.blockId || 'noex'}`;
+      key = `${t.hour}-${t.mode}-${t.fighterId}`;
     }
 
     if (!sessions[key]) {
@@ -637,6 +671,7 @@ function getTrainingSessions(ds) {
         mode: t.mode,
         group: t.group,
         blockId: t.blockId,
+        isGuestSession: t.isGuest,
         fighters: []
       };
     }
@@ -644,11 +679,15 @@ function getTrainingSessions(ds) {
       id: t.fighterId,
       name: t.fighterName,
       group: t.group,
-      idx: t.idx
+      idx: t.idx,
+      isGuest: t.isGuest
     });
   });
 
-  return Object.values(sessions).sort((a,b) => a.hour - b.hour);
+  return Object.values(sessions).sort((a,b) => {
+    if (a.hour !== b.hour) return a.hour - b.hour;
+    return a.group.localeCompare(b.group);
+  });
 }
 
 function isAttended(fighter, ds, hour) {
@@ -714,9 +753,10 @@ function formatSessionText(session) {
     const fighter = DB.fighters.find(x => x.id === f.id);
     if (!fighter) return;
     const st = isAttended(fighter, session.date, session.hour);
-    if (st === true) present.push(f.name);
-    else if (st === false) absent.push(f.name);
-    else absent.push(f.name + ' (?)');
+    const guestMark = f.isGuest ? ' [+]' : '';
+    if (st === true) present.push(f.name + guestMark);
+    else if (st === false) absent.push(f.name + guestMark);
+    else absent.push(f.name + guestMark + ' (?)');
   });
 
   const lines = [];
@@ -743,6 +783,7 @@ function formatSessionText(session) {
 
   lines.push('');
   lines.push(`Тренер: ${DB.settings.coachName || '—'}`);
+  lines.push('(+) — внеплановый боец');
 
   return lines.join('\n');
 }
@@ -752,4 +793,66 @@ function formatDayText(ds) {
   if (!sessions.length) return 'На эту дату тренировок нет.';
   const parts = sessions.map(s => formatSessionText(s));
   return parts.join('\n\n────────────\n\n');
+}
+
+/* ================== ВНЕПЛАНОВЫЕ БОЙЦЫ (GUESTS) ==================
+   Добавляем бойца в существующую тренировку (час + группа), даже если
+   его там изначально не было.
+   Сохраняем в календарь бойца с пометкой guest: true.
+*/
+function addGuestToTraining(fighterId, ds, hour, hostGroupKey, hostBlockId, hostMode) {
+  const f = DB.fighters.find(x => x.id === fighterId);
+  if (!f) return false;
+
+  f.calendar[ds] = f.calendar[ds] || [];
+
+  // Проверка: есть ли уже тренировка на этот час
+  const already = f.calendar[ds].find(s => s.hour === hour);
+  if (already) return false;
+
+  // Комментарий: «Внеплановый: пришёл на [группа]»
+  const hostGroupName = groupName(hostGroupKey);
+  const comment = `Внеплановый: пришёл на ${hostGroupName}`;
+
+  f.calendar[ds].push({
+    hour,
+    blockId: hostBlockId || '',
+    mode: hostMode || 'group',
+    comment,
+    guest: true,
+    hostGroup: hostGroupKey
+  });
+
+  saveData(DB);
+  return true;
+}
+
+function removeGuestFromTraining(fighterId, ds, hour) {
+  const f = DB.fighters.find(x => x.id === fighterId);
+  if (!f || !f.calendar[ds]) return false;
+
+  const idx = f.calendar[ds].findIndex(s => s.hour === hour && s.guest);
+  if (idx < 0) return false;
+
+  f.calendar[ds].splice(idx, 1);
+  if (!f.calendar[ds].length) delete f.calendar[ds];
+
+  // Также удаляем отметку посещаемости
+  if (f.attendance) {
+    f.attendance = f.attendance.filter(a => !(a.date === ds && a.hour === hour));
+  }
+
+  saveData(DB);
+  return true;
+}
+
+/* Список бойцов, которых ЕЩЁ НЕТ в данной тренировке */
+function getFightersNotInSession(ds, hour, sessionFighterIds) {
+  return DB.fighters.filter(f => {
+    if (sessionFighterIds.includes(f.id)) return false;
+    // Проверяем: нет ли уже в этот час у бойца другой тренировки
+    const has = (f.calendar[ds] || []).some(s => s.hour === hour);
+    if (has) return false;
+    return true;
+  });
 }

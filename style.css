@@ -109,42 +109,123 @@ button.ghost { background: #eee; color: #111; }
 
 .slot-add { background: #eee; color: #111; padding: 2px 6px; font-size: 12px; }
 
-/* ===== Календарь тренера (неделя) ===== */
-.coach-cal-wrap { overflow-x: auto; }
-.coach-cal {
-  display: grid;
-  grid-template-columns: 60px repeat(7, minmax(140px, 1fr));
-  gap: 2px; min-width: 720px;
-}
-.coach-cal .corner { background: #111; }
-.coach-cal .day-head {
-  background: #111; color: #fff; padding: 8px 6px; text-align: center;
-  border-radius: 4px; font-size: 13px; font-weight: 600;
-}
-.coach-cal .day-head.today { background: #e63946; }
-.coach-cal .hour {
-  background: #fafafa; color: #666; padding: 6px 4px; text-align: right;
-  font-size: 12px; border-radius: 4px; font-weight: 600;
-}
-.coach-cal .cell {
-  background: #fff; border: 1px solid #eee; border-radius: 4px;
-  min-height: 44px; padding: 2px; display: flex; flex-direction: column; gap: 2px;
-  font-size: 11px; cursor: pointer;
-}
-.coach-cal .cell:hover { background: #f9f9f9; }
-.coach-cal .ev {
-  padding: 2px 4px; border-radius: 3px; font-size: 10px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  border-left: 3px solid;
-}
-.coach-cal .ev.self { background: #FEF3C7; border-color: #F59E0B; }
-.coach-cal .ev.personal { background: #FCE7F3; border-color: #EC4899; }
-.coach-cal .ev.group { background: #DBEAFE; border-color: #3B82F6; }
-.coach-cal .ev b { font-weight: 600; }
+/* ===== Календарь тренера ===== */
+.coach-cal-header { margin-bottom: 12px; }
 
-.legend { display: flex; gap: 14px; flex-wrap: wrap; margin: 8px 0 12px; font-size: 13px; }
-.legend span { display: inline-flex; align-items: center; gap: 6px; }
-.legend i { display: inline-block; width: 14px; height: 14px; border-radius: 3px; }
+.coach-cal-toolbar {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.coach-cal-week { font-size: 16px; }
+
+.days-strip {
+  display: flex; gap: 6px;
+  overflow-x: auto;
+  padding: 4px 0 8px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+.days-strip::-webkit-scrollbar { height: 4px; }
+.days-strip::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+
+.day-chip {
+  flex: 0 0 auto;
+  min-width: 64px;
+  padding: 8px 6px;
+  border-radius: 10px;
+  background: #fff;
+  color: #111;
+  border: 2px solid #eee;
+  cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  position: relative;
+  transition: all .15s;
+}
+.day-chip:hover { border-color: #c7d2fe; opacity: 1; }
+.day-chip.selected {
+  background: #e63946; color: #fff; border-color: #e63946;
+}
+.day-chip.is-today:not(.selected) {
+  border-color: #e63946;
+}
+.day-chip .day-chip-name {
+  font-size: 12px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .3px; opacity: .8;
+}
+.day-chip .day-chip-num {
+  font-size: 20px; font-weight: 700; line-height: 1;
+}
+.day-chip .day-chip-month {
+  font-size: 11px; opacity: .7;
+}
+.day-chip .day-chip-badge {
+  position: absolute; top: -6px; right: -6px;
+  background: #22c55e; color: #fff;
+  font-size: 10px; font-weight: 700;
+  border-radius: 10px;
+  padding: 1px 6px;
+  border: 2px solid #fff;
+}
+.day-chip.selected .day-chip-badge {
+  background: #fff; color: #e63946;
+}
+
+.selected-day-label {
+  font-size: 15px; font-weight: 600; text-transform: capitalize;
+  margin: 8px 0 4px; color: #333;
+}
+
+.hours-list {
+  display: flex; flex-direction: column;
+  background: #fff; border-radius: 10px; overflow: hidden;
+  border: 1px solid #eee;
+}
+
+.hour-row {
+  display: flex; align-items: stretch;
+  border-bottom: 1px solid #f0f0f0;
+  min-height: 52px;
+}
+.hour-row:last-child { border-bottom: 0; }
+.hour-row.is-now { background: #fff5f6; }
+.hour-row.is-now .hour-label { color: #e63946; font-weight: 700; }
+
+.hour-label {
+  flex: 0 0 60px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 600; color: #666;
+  background: #fafafa; border-right: 1px solid #f0f0f0;
+}
+
+.hour-cell {
+  flex: 1; padding: 6px 8px;
+  display: flex; flex-direction: column; gap: 4px;
+  position: relative; cursor: pointer;
+  transition: background .1s;
+}
+.hour-cell:hover { background: #f9fafb; }
+
+.hour-event {
+  padding: 6px 10px; border-radius: 6px; font-size: 13px;
+  border-left: 3px solid #999; cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.hour-event b { font-weight: 600; }
+.hour-event.self { background: #FEF3C7; border-color: #F59E0B; color: #78350F; }
+.hour-event.personal { background: #FCE7F3; border-color: #EC4899; color: #831843; }
+.hour-event.group { background: #DBEAFE; border-color: #3B82F6; color: #1E3A8A; }
+.hour-event:hover { filter: brightness(0.96); }
+
+.hour-add {
+  position: absolute; right: 8px; top: 50%;
+  transform: translateY(-50%);
+  width: 24px; height: 24px; border-radius: 50%;
+  background: #eee; color: #666;
+  display: none; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 700; line-height: 1;
+  pointer-events: none;
+}
+.hour-cell:not(:has(.hour-event)) .hour-add { display: flex; }
 
 /* ===== Уведомления ===== */
 .toast {
@@ -181,6 +262,30 @@ button.ghost { background: #eee; color: #111; }
 .modal-actions .primary:hover { background: #c92f3a; opacity: 1; }
 .modal-actions .secondary { background: #888; }
 .modal-actions .secondary:hover { background: #666; opacity: 1; }
+
+/* ===== Модалка выбора внеплановых бойцов ===== */
+.guest-list {
+  max-height: 380px; overflow-y: auto;
+  border: 1px solid #eee; border-radius: 8px; padding: 8px;
+  margin-top: 10px;
+}
+.guest-group { margin-bottom: 10px; }
+.guest-group:last-child { margin-bottom: 0; }
+.guest-group-title {
+  font-size: 11px; font-weight: 700; color: #888;
+  text-transform: uppercase; letter-spacing: .5px;
+  padding: 6px 8px 4px;
+}
+.guest-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border-radius: 6px;
+  cursor: pointer; margin: 2px 0;
+  border: 1px solid transparent;
+}
+.guest-item:hover { background: #f5f5f5; }
+.guest-item input[type=checkbox] {
+  width: 18px; height: 18px; accent-color: #22c55e;
+}
 
 /* ===== Выпадающий список бойцов ===== */
 .fighters-dropdown { position: relative; margin-top: 6px; }
@@ -289,7 +394,7 @@ button.ghost { background: #eee; color: #111; }
 }
 .tabs button.active { color: #111; border-bottom-color: #e63946; font-weight: 600; }
 
-/* ===== Замеры (карточки) ===== */
+/* ===== Замеры ===== */
 .physical-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;
 }
@@ -313,7 +418,7 @@ button.ghost { background: #eee; color: #111; }
 }
 .physical-entry:last-child { border-bottom: 0; }
 
-/* ===== Таблица оценок: компактная шапка ===== */
+/* ===== Таблица оценок ===== */
 .assess-wrap { overflow-x: auto; }
 .assess { min-width: 100%; }
 .assess th.col-assess {
@@ -324,9 +429,7 @@ button.ghost { background: #eee; color: #111; }
   font-size: 13px; font-weight: 600; color: #1e3a8a;
   margin-bottom: 4px; line-height: 1.2;
 }
-.assess th.col-assess .col-head-date {
-  margin-bottom: 2px;
-}
+.assess th.col-assess .col-head-date { margin-bottom: 2px; }
 .assess th.col-assess .col-date-mini {
   font-size: 11px; padding: 2px 4px; width: 100%;
   border: 1px solid #cbd5e1; background: #fff; border-radius: 4px;
@@ -339,7 +442,7 @@ button.ghost { background: #eee; color: #111; }
   font-size: 11px; color: #6b7280; text-transform: lowercase;
 }
 
-/* ===== Шаг 2: Слабые стороны бойца ===== */
+/* ===== Слабые стороны бойца ===== */
 .weak-list { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
 .weak-row {
   background: #fafafa; border-radius: 8px; padding: 10px 12px;
@@ -367,40 +470,34 @@ button.ghost { background: #eee; color: #111; }
   border: 1px solid #c7d2fe;
 }
 
-/* ===== Шаг 2: Журнал последних тренировок ===== */
+/* ===== Журнал последних тренировок ===== */
 .journal-list { display: flex; flex-direction: column; gap: 6px; }
 .journal-item {
   display: flex; gap: 10px; align-items: flex-start;
   padding: 8px 10px; border-radius: 8px;
   background: #fafafa; border: 1px solid #eee;
-  cursor: pointer;
-  transition: background .15s;
+  cursor: pointer; transition: background .15s;
 }
 .journal-item:hover { background: #f0f4ff; border-color: #c7d2fe; }
 .journal-item .j-date {
   flex-shrink: 0; min-width: 52px;
-  font-size: 12px; color: #666; text-align: center;
-  line-height: 1.3;
+  font-size: 12px; color: #666; text-align: center; line-height: 1.3;
 }
-.journal-item .j-date b {
-  display: block; font-size: 14px; color: #111;
-}
+.journal-item .j-date b { display: block; font-size: 14px; color: #111; }
 .journal-item .j-info { flex: 1; min-width: 0; }
 .journal-item .j-info b { display: block; font-size: 14px; }
 .journal-item .j-info small { color: #666; font-size: 12px; }
 .journal-item .j-info small.comment { color: #888; font-style: italic; }
 .journal-item .j-mode {
-  flex-shrink: 0;
-  display: inline-block;
+  flex-shrink: 0; display: inline-block;
   padding: 2px 8px; border-radius: 10px;
-  font-size: 11px; font-weight: 600;
-  white-space: nowrap;
+  font-size: 11px; font-weight: 600; white-space: nowrap;
 }
 .journal-item .j-mode.self { background: #FEF3C7; color: #78350F; }
 .journal-item .j-mode.personal { background: #FCE7F3; color: #831843; }
 .journal-item .j-mode.group { background: #DBEAFE; color: #1E3A8A; }
 
-/* ===== Шаг 3: Отметка тренировки (attendance) ===== */
+/* ===== Отметка тренировки ===== */
 .att-toolbar {
   display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
   margin: 10px 0 16px;
@@ -429,9 +526,7 @@ button.ghost { background: #eee; color: #111; }
 }
 .att-card.done .att-badge { background: #dcfce7; color: #166534; }
 
-.att-summary {
-  font-size: 13px; color: #666; margin-bottom: 10px;
-}
+.att-summary { font-size: 13px; color: #666; margin-bottom: 10px; }
 .att-summary b { color: #111; }
 
 .att-actions {
@@ -464,7 +559,28 @@ button.ghost { background: #eee; color: #111; }
   font-size: 11px; color: #888;
 }
 
-/* Компактный вариант для истории */
+/* Внеплановый боец */
+.att-check-item.guest {
+  background: #fffbeb;
+  border-color: #fcd34d;
+}
+.att-check-item.guest.checked {
+  background: #fef3c7;
+  border-color: #f59e0b;
+}
+.att-guest-badge {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #92400e;
+  background: #fcd34d;
+  padding: 1px 6px;
+  border-radius: 8px;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+}
+
 .att-history-item {
   display: flex; justify-content: space-between; gap: 10px;
   padding: 8px 10px; font-size: 13px; border-bottom: 1px solid #f0f0f0;
@@ -491,6 +607,11 @@ button.ghost { background: #eee; color: #111; }
   main { padding: 12px; }
   table { font-size: 12px; }
   th, td { padding: 6px; }
-  .coach-cal { grid-template-columns: 50px repeat(7, minmax(120px, 1fr)); }
   .att-checklist { grid-template-columns: 1fr; }
+
+  .day-chip { min-width: 58px; padding: 6px 4px; }
+  .day-chip .day-chip-num { font-size: 18px; }
+  .hour-label { flex: 0 0 52px; font-size: 12px; }
+  .hour-event { font-size: 12px; padding: 5px 8px; }
+  .hour-row { min-height: 46px; }
 }

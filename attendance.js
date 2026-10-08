@@ -1,6 +1,6 @@
 /* ============================================================
    ATTENDANCE.JS — раздел «Отметка тренировки»
-   Чек-лист посещений + экспорт
+   Чек-лист посещений + экспорт + внеплановые бойцы
    ============================================================ */
 
 const Attendance = (() => {
@@ -21,63 +21,46 @@ const Attendance = (() => {
   }
 
   function render() {
-    try {
-      const sessions = getTrainingSessions(viewDate);
-      const dateObj = new Date(viewDate + 'T00:00:00');
+    const sessions = getTrainingSessions(viewDate);
+    const dateObj = new Date(viewDate + 'T00:00:00');
 
-      // Статистика по дню
-      let totalFighters = 0;
-      let totalPresent = 0;
-      sessions.forEach(s => {
-        s.fighters.forEach(f => {
-          const fighter = DB.fighters.find(x => x.id === f.id);
-          if (!fighter) return;
-          totalFighters++;
-          const st = isAttended(fighter, s.date, s.hour);
-          if (st === true) totalPresent++;
-        });
+    let totalFighters = 0;
+    let totalPresent = 0;
+    sessions.forEach(s => {
+      s.fighters.forEach(f => {
+        const fighter = DB.fighters.find(x => x.id === f.id);
+        if (!fighter) return;
+        totalFighters++;
+        const st = isAttended(fighter, s.date, s.hour);
+        if (st === true) totalPresent++;
       });
+    });
 
-      const dateLabel = dateObj.toLocaleDateString('ru-RU', {
-        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-      });
+    const dateLabel = dateObj.toLocaleDateString('ru-RU', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    });
 
-      // Пустая база бойцов
-      const noFighters = !DB.fighters.length;
+    app.innerHTML = `
+      <h2>Отметка тренировки</h2>
+      <div class="att-toolbar">
+        <button onclick="Attendance.shiftDate(-1);render()">‹</button>
+        <b style="min-width: 260px; text-align: center; text-transform: capitalize;">${dateLabel}</b>
+        <button onclick="Attendance.shiftDate(1);render()">›</button>
+        <button class="ghost" onclick="Attendance.setToday();render()">Сегодня</button>
+        <label style="margin-left: 10px;">
+          <input type="date" value="${viewDate}" onchange="Attendance.setDate(this.value)">
+        </label>
+        ${sessions.length ? `
+          <button class="success" style="margin-left: auto;" onclick="Attendance.copyDay()">📋 Скопировать весь день</button>
+          <button onclick="Attendance.shareDay()">📤 Отправить день</button>
+        ` : ''}
+      </div>
 
-      app.innerHTML = `
-        <h2>Отметка тренировки</h2>
-        <div class="att-toolbar">
-          <button onclick="Attendance.shiftDate(-1);Attendance.render()">‹</button>
-          <b style="min-width: 260px; text-align: center; text-transform: capitalize;">${dateLabel}</b>
-          <button onclick="Attendance.shiftDate(1);Attendance.render()">›</button>
-          <button class="ghost" onclick="Attendance.setToday();Attendance.render()">Сегодня</button>
-          <label style="margin-left: 10px;">
-            <input type="date" value="${viewDate}" onchange="Attendance.setDate(this.value)">
-          </label>
-          ${sessions.length ? `
-            <button class="success" style="margin-left: auto;" onclick="Attendance.copyDay()">📋 Скопировать весь день</button>
-            <button onclick="Attendance.shareDay()">📤 Отправить день</button>
-          ` : ''}
-        </div>
-
-        ${noFighters ? `
-          <div class="card">
-            <p style="color:#666;font-size:14px;margin:0;">
-              В базе пока нет бойцов. Добавьте первого в разделе «Бойцы».
-            </p>
-          </div>
-        ` : (!sessions.length ? `
-          <div class="card" style="border-left:4px solid #cbd5e1;">
-            <h3 style="margin-top:0;">На эту дату активных тренировок нет</h3>
-            <p style="color:#666;font-size:14px;margin:0 0 10px;">
-              Тренировки назначаются в разделе «Дашборд» (календарь тренера) или в карточке бойца.
-            </p>
-            <button onclick="state.tab='dashboard';document.querySelectorAll('#mainNav button').forEach(x=>x.classList.toggle('active',x.dataset.tab==='dashboard'));render()">
-              Открыть календарь тренера
-            </button>
-          </div>
-        ` : `
+      ${!sessions.length
+        ? `<div class="card"><p style="color:#666;font-size:14px;margin:0;">
+             На эту дату тренировок нет. Назначьте их в календаре тренера или в календаре бойца.
+           </p></div>`
+        : `
           <div class="card" style="background:#f0fdf4;border-left:4px solid #22c55e;">
             <b>Присутствуют: ${totalPresent} из ${totalFighters}</b>
             <span style="color:#666;margin-left:10px;font-size:13px;">
@@ -87,21 +70,9 @@ const Attendance = (() => {
           <div class="att-list">
             ${sessions.map(s => renderSession(s)).join('')}
           </div>
-        `)}
-      `;
-    } catch (e) {
-      console.error('[Attendance] Ошибка рендера:', e);
-      app.innerHTML = `
-        <h2>Отметка тренировки</h2>
-        <div class="card" style="border-left:4px solid #dc2626;background:#fef2f2;">
-          <h3 style="margin-top:0;">Ошибка в разделе «Отметка»</h3>
-          <p style="color:#991b1b;font-size:14px;">
-            ${e.message || 'Неизвестная ошибка'}
-          </p>
-          <pre style="background:#fff;padding:10px;border-radius:6px;font-size:12px;overflow:auto;">${(e.stack || '').split('\n').slice(0,5).join('\n')}</pre>
-        </div>
-      `;
-    }
+        `
+      }
+    `;
   }
 
   function renderSession(session) {
@@ -109,10 +80,12 @@ const Attendance = (() => {
     const exName = session.blockId ? exerciseName(session.blockId) : 'Без упражнения';
 
     let present = 0;
+    let guestsCount = 0;
     session.fighters.forEach(f => {
       const fighter = DB.fighters.find(x => x.id === f.id);
       if (!fighter) return;
       if (isAttended(fighter, session.date, session.hour) === true) present++;
+      if (f.isGuest) guestsCount++;
     });
     const total = session.fighters.length;
     const allMarked = session.fighters.every(f => {
@@ -130,12 +103,20 @@ const Attendance = (() => {
       const st = isAttended(fighter, session.date, session.hour);
       const checked = st === true ? 'checked' : '';
       const cls = st === true ? 'checked' : '';
+      const guestClass = f.isGuest ? 'guest' : '';
+      const guestBadge = f.isGuest ? '<span class="att-guest-badge">➕ Внеплановый</span>' : '';
+      const removeBtn = f.isGuest
+        ? `<button class="small danger" style="margin-left:6px;"
+                   onclick="event.preventDefault();event.stopPropagation();Attendance.removeGuest('${f.id}',${session.hour})"
+                   title="Убрать внепланового">✕</button>`
+        : '';
       return `
-        <label class="att-check-item ${cls}">
+        <label class="att-check-item ${cls} ${guestClass}">
           <input type="checkbox" ${checked}
                  onchange="Attendance.toggle('${f.id}', ${session.hour}, this.checked)">
-          <span class="att-name">${f.name}</span>
+          <span class="att-name">${f.name}${guestBadge}</span>
           <span class="att-group">${groupShort(f.group)}</span>
+          ${removeBtn}
         </label>
       `;
     }).join('');
@@ -145,7 +126,7 @@ const Attendance = (() => {
         <div class="att-card-header">
           <div>
             <h3>${title}</h3>
-            <span class="att-time">${time} • ${exName}</span>
+            <span class="att-time">${time} • ${exName}${guestsCount ? ` • внеплановых: ${guestsCount}` : ''}</span>
           </div>
           <span class="att-badge">${allMarked ? '✅ Отмечено' : '⚠️ Не отмечено'}</span>
         </div>
@@ -158,12 +139,116 @@ const Attendance = (() => {
         <div class="att-actions">
           <button class="success small" onclick="Attendance.markAll('${session.key}', true)">✓ Отметить всех</button>
           <button class="ghost small" onclick="Attendance.markAll('${session.key}', false)">✗ Никого</button>
-          <button class="small" onclick="Attendance.copySession('${session.key}')">📋 Скопировать список</button>
+          <button class="small" onclick="Attendance.openAddGuest('${session.key}')">➕ Добавить бойца</button>
+          <button class="small" onclick="Attendance.copySession('${session.key}')">📋 Скопировать</button>
           <button class="small" onclick="Attendance.shareSession('${session.key}')">📤 Отправить</button>
         </div>
       </div>
     `;
   }
+
+  /* ================== ВНЕПЛАНОВЫЕ ================== */
+
+  function openAddGuest(sessionKey) {
+    const session = findSessionByKey(sessionKey);
+    if (!session) return;
+
+    // Список бойцов, которых ещё нет в сессии
+    const presentIds = session.fighters.map(f => f.id);
+    const candidates = getFightersNotInSession(session.date, session.hour, presentIds);
+
+    if (!candidates.length) {
+      toast('Нет доступных бойцов для добавления', 'error');
+      return;
+    }
+
+    // Группируем по группам для удобства
+    const byGroup = {};
+    candidates.forEach(f => {
+      if (!byGroup[f.group]) byGroup[f.group] = [];
+      byGroup[f.group].push(f);
+    });
+
+    const groupsHtml = FIGHTER_GROUPS.map(g => {
+      const list = byGroup[g.key] || [];
+      if (!list.length) return '';
+      return `
+        <div class="guest-group">
+          <div class="guest-group-title">${g.name}</div>
+          ${list.map(f => `
+            <label class="guest-item">
+              <input type="checkbox" class="guest-check" value="${f.id}">
+              <span>${f.name}</span>
+            </label>
+          `).join('')}
+        </div>
+      `;
+    }).join('');
+
+    const hostTitle = session.mode === 'group'
+      ? groupName(session.group)
+      : (session.fighters[0]?.name || 'Индивидуально');
+    const hostTime = String(session.hour).padStart(2,'0') + ':00';
+
+    Modal.open(`
+      <div class="modal" onclick="event.stopPropagation()">
+        <h3>Добавить внепланового бойца</h3>
+        <p style="font-size:13px;color:#666;margin:4px 0 10px;">
+          Тренировка: <b>${hostTitle}</b>, ${hostTime}, ${formatDateRu(session.date)}
+        </p>
+        <p style="font-size:13px;color:#666;margin:0 0 10px;">
+          Выберите бойцов, которые пришли, но не были назначены на эту тренировку.
+          Они будут добавлены со значком «➕ Внеплановый».
+        </p>
+        <div class="guest-list">${groupsHtml}</div>
+        <div class="modal-actions">
+          <button class="secondary" onclick="Modal.close()">Отмена</button>
+          <button class="primary" onclick="Attendance.submitAddGuest('${session.key}')">Добавить</button>
+        </div>
+      </div>
+    `);
+  }
+
+  function submitAddGuest(sessionKey) {
+    const session = findSessionByKey(sessionKey);
+    if (!session) return;
+
+    const checks = [...document.querySelectorAll('.guest-check:checked')];
+    if (!checks.length) {
+      toast('Выберите хотя бы одного бойца', 'error');
+      return;
+    }
+
+    let added = 0;
+    checks.forEach(cb => {
+      const ok = addGuestToTraining(
+        cb.value,
+        session.date,
+        session.hour,
+        session.group,
+        session.blockId,
+        session.mode
+      );
+      if (ok) added++;
+    });
+
+    Modal.close();
+    toast(added === 1 ? 'Добавлен 1 боец' : `Добавлено: ${added}`, 'ok');
+    render();
+  }
+
+  function removeGuest(fighterId, hour) {
+    if (!confirm('Убрать этого бойца из тренировки?')) return;
+    const ok = removeGuestFromTraining(fighterId, viewDate, hour);
+    if (ok) {
+      toast('Внеплановый боец убран', 'ok');
+      render();
+    } else {
+      toast('Не удалось убрать бойца', 'error');
+    }
+  }
+
+  /* ================== ВСПОМОГАТЕЛЬНЫЕ ================== */
 
   function findSessionByKey(key) {
     return getTrainingSessions(viewDate).find(s => s.key === key);
@@ -252,7 +337,7 @@ const Attendance = (() => {
     if (navigator.share) {
       navigator.share({ text })
         .then(() => toast('Отправлено', 'ok'))
-        .catch(() => {});
+        .catch(() => { /* отмена */ });
     } else {
       copyToClipboard(text);
       setTimeout(() => {
@@ -263,7 +348,10 @@ const Attendance = (() => {
     }
   }
 
-  return { render, shiftDate, setToday, setDate, toggle, markAll,
-           copySession, shareSession, copyDay, shareDay };
+  return {
+    render, shiftDate, setToday, setDate,
+    toggle, markAll, copySession, shareSession, copyDay, shareDay,
+    openAddGuest, submitAddGuest, removeGuest
+  };
 })();
 window.Attendance = Attendance;

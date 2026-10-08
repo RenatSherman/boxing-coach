@@ -1,5 +1,5 @@
 /* ============================================================
-   CALENDAR.JS — календарь бойца (месяц), календарь тренера (неделя)
+   CALENDAR.JS — календарь бойца (месяц), календарь тренера (день+неделя)
    ============================================================ */
 
 /* ================== КАЛЕНДАРЬ БОЙЦА (МЕСЯЦ) ================== */
@@ -122,103 +122,212 @@ const Calendar = (() => {
 
 setInterval(() => Calendar.notifyUpcoming(), 5 * 60 * 1000);
 
-/* ================== КАЛЕНДАРЬ ТРЕНЕРА (НЕДЕЛЯ) ================== */
-const CoachCalendar = (() => {
-  let start = (() => {
+/* ================== КАЛЕНДАРЬ ТРЕНЕРА (НОВАЯ ВЕРСИЯ) ==================
+   Особенности:
+   - Лента дней сверху — горизонтальный скролл, дни всегда видны.
+   - Часы слева — вертикальный скролл. Время не уезжает.
+   - Клик по часу → назначаем тренировку.
+   - Клик по событию → окно с деталями.
+   - Выбранный день хранится в ГЛОБАЛЬНОЙ переменной, чтобы
+     сохраняться между перерисовками дашборда.
+*/
+
+/* Глобальное состояние календаря тренера — живёт вне функции,
+   чтобы клик по дню не сбрасывал его при перерисовке. */
+let __coachCalState = {
+  weekStart: (() => {
     const n = new Date();
     const day = (n.getDay() + 6) % 7;
     const s = new Date(n.getFullYear(), n.getMonth(), n.getDate() - day);
     s.setHours(0,0,0,0);
     return s;
-  })();
+  })(),
+  selectedDayIndex: (() => {
+    const n = new Date();
+    return (n.getDay() + 6) % 7;
+  })()
+};
+
+const CoachCalendar = (() => {
+  const START_HOUR = 6;
+  const END_HOUR = 22;
 
   function shiftWeek(delta) {
-    start = new Date(start.getFullYear(), start.getMonth(), start.getDate() + delta*7);
+    __coachCalState.weekStart = new Date(
+      __coachCalState.weekStart.getFullYear(),
+      __coachCalState.weekStart.getMonth(),
+      __coachCalState.weekStart.getDate() + delta*7
+    );
   }
+
   function thisWeek() {
     const n = new Date();
     const day = (n.getDay() + 6) % 7;
-    start = new Date(n.getFullYear(), n.getMonth(), n.getDate() - day);
-    start.setHours(0,0,0,0);
-  }
-  function weekLabel() {
-    const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
-    const fmt = d => `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}`;
-    return `${fmt(start)} — ${fmt(end)}.${end.getFullYear()}`;
+    __coachCalState.weekStart = new Date(n.getFullYear(), n.getMonth(), n.getDate() - day);
+    __coachCalState.weekStart.setHours(0,0,0,0);
+    __coachCalState.selectedDayIndex = day;
   }
 
-  function render() {
-    const hours = Array.from({length: 17}, (_,i)=>i+6);
-    const days = Array.from({length: 7}, (_,i) => {
+  function weekLabel() {
+    const start = __coachCalState.weekStart;
+    const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
+    const months = ['января','февраля','марта','апреля','мая','июня',
+                    'июля','августа','сентября','октября','ноября','декабря'];
+    const d1 = start.getDate();
+    const d2 = end.getDate();
+    const m1 = months[start.getMonth()];
+    const m2 = months[end.getMonth()];
+    if (start.getMonth() === end.getMonth()) {
+      return `${d1}–${d2} ${m2}`;
+    }
+    return `${d1} ${m1} – ${d2} ${m2}`;
+  }
+
+  function getDays() {
+    const start = __coachCalState.weekStart;
+    return Array.from({length: 7}, (_,i) => {
       const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
       return { date: d, ds: dateStr(d) };
     });
-    const t = todayStr();
-    const dayNames = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
-
-    let html = `
-      <div class="cal-toolbar">
-        <button onclick="CoachCalendar.shiftWeek(-1);renderDashboard()">‹</button>
-        <b>${weekLabel()}</b>
-        <button onclick="CoachCalendar.shiftWeek(1);renderDashboard()">›</button>
-        <button onclick="CoachCalendar.thisWeek();renderDashboard()">Текущая неделя</button>
-        <button onclick="openAssignTrainingModal(null, null, null)">+ Назначить тренировку</button>
-      </div>
-      <div class="legend">
-        <span><i style="background:#FEF3C7;border-left:3px solid #F59E0B"></i>Самостоятельно</span>
-        <span><i style="background:#FCE7F3;border-left:3px solid #EC4899"></i>Индивидуально</span>
-        <span><i style="background:#DBEAFE;border-left:3px solid #3B82F6"></i>Группа</span>
-      </div>
-      <div class="coach-cal-wrap">
-        <div class="coach-cal">
-          <div class="corner"></div>
-          ${days.map((d,i) => `
-            <div class="day-head ${d.ds===t?'today':''}">
-              ${dayNames[i]}<br><small>${String(d.date.getDate()).padStart(2,'0')}.${String(d.date.getMonth()+1).padStart(2,'0')}</small>
-            </div>`).join('')}
-    `;
-
-    hours.forEach(h => {
-      html += `<div class="hour">${String(h).padStart(2,'0')}:00</div>`;
-      days.forEach(d => {
-        const events = [];
-        DB.fighters.forEach(f => {
-          (f.calendar[d.ds] || []).forEach((s, idx) => {
-            if (s.hour === h) events.push({ f, s, idx });
-          });
-        });
-
-        const aggregated = aggregateSlotEvents(events);
-
-        html += `<div class="cell" onclick="openAssignTrainingModal(null,'${d.ds}',${h})">`;
-        aggregated.forEach(agg => {
-          const tooltip = agg.events.map(ev => {
-            const exName = ev.s.blockId ? exerciseName(ev.s.blockId) : 'без упражнения';
-            return `${ev.f.name} — ${exName}`;
-          }).join('\n');
-
-          const modeClass = agg.mode === 'group' && agg.count > 1
-            ? 'group'
-            : agg.events[0].s.mode;
-
-          html += `<div class="ev ${modeClass}"
-                        title="${tooltip}"
-                        onclick="event.stopPropagation();openAggregatedTraining('${d.ds}',${h})">
-            <b>${agg.label}</b>
-          </div>`;
-        });
-        html += `</div>`;
-      });
-    });
-
-    html += `</div></div>`;
-    return html;
   }
 
-  return { render, shiftWeek, thisWeek };
+  /* Обработчики навигации — вызывают renderDashboard,
+     состояние сохраняется в глобальной переменной */
+  function goPrevWeek() {
+    shiftWeek(-1);
+    renderDashboard();
+  }
+  function goNextWeek() {
+    shiftWeek(1);
+    renderDashboard();
+  }
+  function goThisWeek() {
+    thisWeek();
+    renderDashboard();
+  }
+  function selectDay(i) {
+    __coachCalState.selectedDayIndex = i;
+    renderDashboard();
+  }
+
+  function render() {
+    const days = getDays();
+    const t = todayStr();
+    const dayNames = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+    const monthsShort = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+
+    // Лента дней
+    const daysStripHtml = days.map((d, i) => {
+      const isToday = d.ds === t;
+      const isSelected = i === __coachCalState.selectedDayIndex;
+      const dayNum = d.date.getDate();
+      const monthName = monthsShort[d.date.getMonth()];
+      let cnt = 0;
+      DB.fighters.forEach(f => {
+        cnt += (f.calendar[d.ds] || []).length;
+      });
+      return `
+        <button class="day-chip ${isSelected ? 'selected' : ''} ${isToday ? 'is-today' : ''}"
+                onclick="CoachCalendar.selectDay(${i})">
+          <span class="day-chip-name">${dayNames[i]}</span>
+          <span class="day-chip-num">${dayNum}</span>
+          <span class="day-chip-month">${monthName}</span>
+          ${cnt ? `<span class="day-chip-badge">${cnt}</span>` : ''}
+        </button>
+      `;
+    }).join('');
+
+    // Выбранный день
+    const selectedDs = days[__coachCalState.selectedDayIndex].ds;
+    const selectedDate = days[__coachCalState.selectedDayIndex].date;
+
+    // Строки по часам
+    let hoursHtml = '';
+    for (let h = START_HOUR; h <= END_HOUR; h++) {
+      const events = [];
+      DB.fighters.forEach(f => {
+        (f.calendar[selectedDs] || []).forEach((s, idx) => {
+          if (s.hour === h) events.push({ f, s, idx });
+        });
+      });
+
+      const aggregated = aggregateSlotEvents(events);
+
+      const isNow = (() => {
+        const now = new Date();
+        return dateStr(now) === selectedDs && now.getHours() === h;
+      })();
+
+      hoursHtml += `
+        <div class="hour-row ${isNow ? 'is-now' : ''}">
+          <div class="hour-label">${String(h).padStart(2,'0')}:00</div>
+          <div class="hour-cell"
+               onclick="openAssignTrainingModal(null,'${selectedDs}',${h})">
+            ${aggregated.length
+              ? aggregated.map(agg => {
+                  const tooltip = agg.events.map(ev => {
+                    const exName = ev.s.blockId ? exerciseName(ev.s.blockId) : 'без упражнения';
+                    return `${ev.f.name} — ${exName}`;
+                  }).join('\n');
+                  const modeClass = agg.mode === 'group' && agg.count > 1
+                    ? 'group'
+                    : agg.events[0].s.mode;
+                  return `
+                    <div class="hour-event ${modeClass}"
+                         title="${tooltip}"
+                         onclick="event.stopPropagation();openAggregatedTraining('${selectedDs}',${h})">
+                      <b>${agg.label}</b>
+                    </div>
+                  `;
+                }).join('')
+              : ''}
+            <div class="hour-add" title="Назначить тренировку">+</div>
+          </div>
+        </div>
+      `;
+    }
+
+    const selectedDateLabel = selectedDate.toLocaleDateString('ru-RU', {
+      weekday: 'long', day: 'numeric', month: 'long'
+    });
+
+    return `
+      <div class="coach-cal-header">
+        <div class="coach-cal-toolbar">
+          <button class="ghost" onclick="CoachCalendar.goPrevWeek()">‹</button>
+          <b class="coach-cal-week">${weekLabel()}</b>
+          <button class="ghost" onclick="CoachCalendar.goNextWeek()">›</button>
+          <button class="ghost" onclick="CoachCalendar.goThisWeek()">Текущая</button>
+          <button class="success" style="margin-left:auto" onclick="openAssignTrainingModal(null, '${selectedDs}', null)">+ Тренировка</button>
+        </div>
+        <div class="days-strip">
+          ${daysStripHtml}
+        </div>
+        <div class="selected-day-label">${selectedDateLabel}</div>
+        <div class="legend">
+          <span><i style="background:#FEF3C7;border-left:3px solid #F59E0B"></i>Самостоятельно</span>
+          <span><i style="background:#FCE7F3;border-left:3px solid #EC4899"></i>Индивидуально</span>
+          <span><i style="background:#DBEAFE;border-left:3px solid #3B82F6"></i>Группа</span>
+        </div>
+      </div>
+      <div class="hours-list">
+        ${hoursHtml}
+      </div>
+    `;
+  }
+
+  return {
+    render,
+    shiftWeek,
+    thisWeek,
+    selectDay,
+    goPrevWeek,
+    goNextWeek,
+    goThisWeek
+  };
 })();
 
-/* ================== ДЕЙСТВИЯ С ТРЕНИРОВКОЙ В КАЛЕНДАРЕ ТРЕНЕРА ================== */
+/* ================== ДЕЙСТВИЯ С ТРЕНИРОВКОЙ ================== */
 window.openAggregatedTraining = (dateStr, hour) => {
   const events = [];
   DB.fighters.forEach(f => {
