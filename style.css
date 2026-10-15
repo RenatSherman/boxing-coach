@@ -85,6 +85,46 @@ button.ghost { background: #eee; color: #111; }
 .pos { color: #22c55e; font-weight: 600; }
 .neg { color: #e63946; font-weight: 600; }
 
+/* ===== Заголовок группы бойцов с кнопками ===== */
+.group-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.group-head h3 {
+  margin: 0;
+  font-size: 18px;
+}
+.group-actions {
+  display: flex;
+  gap: 6px;
+}
+.group-actions button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+  background: #eee;
+  color: #333;
+  border-radius: 6px;
+  transition: all .15s;
+}
+.group-actions button:hover {
+  opacity: 1;
+  background: #ddd;
+}
+.group-actions button.danger:hover {
+  background: #e63946;
+  color: #fff;
+}
+
 /* ===== Календарь бойца ===== */
 .cal-toolbar { display: flex; gap: 10px; align-items: center; margin: 10px 0; flex-wrap: wrap; }
 .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
@@ -614,4 +654,7 @@ button.ghost { background: #eee; color: #111; }
   .hour-label { flex: 0 0 52px; font-size: 12px; }
   .hour-event { font-size: 12px; padding: 5px 8px; }
   .hour-row { min-height: 46px; }
+
+  .group-head h3 { font-size: 16px; }
+  .group-actions button { width: 28px; height: 28px; font-size: 13px; }
 }

@@ -1,5 +1,7 @@
 /* ============================================================
    FIGHTERS.JS — бойцы, оценки, замеры, тренировки
+   + сжатие фото при загрузке
+   + гибкие группы бойцов (кнопки на вкладке «Бойцы»)
    ============================================================ */
 
 /* ================== ТРЕНИРОВКИ ================== */
@@ -18,8 +20,9 @@ function addTraining(fighterIds, dateStr, hour, blockId, mode, comment) {
 
 window.openAssignTrainingModal = (presetFighterId, presetDate, presetHour) => {
   const items = allExerciseItems();
+  const groups = getFighterGroups();
 
-  const groupsForList = FIGHTER_GROUPS.map(g => ({
+  const groupsForList = groups.map(g => ({
     ...g,
     fighters: DB.fighters.filter(f => f.group === g.key)
       .sort((a,b)=>a.name.localeCompare(b.name))
@@ -74,8 +77,8 @@ window.openAssignTrainingModal = (presetFighterId, presetDate, presetHour) => {
       <textarea id="tr_comment" placeholder="Заметки к тренировке…"></textarea>
       <label style="margin-top:14px">Кому назначить</label>
       <div class="group-buttons">
-        ${FIGHTER_GROUPS.map(g =>
-          `<button type="button" onclick="pickGroup('${g.key}', event)">Вся группа: ${g.short}</button>`
+        ${groups.map(g =>
+          `<button type="button" onclick="pickGroup('${g.key}', event)">Вся группа: ${makeGroupShort(g.name)}</button>`
         ).join('')}
         <button type="button" onclick="pickAllKids(event)">Все дети</button>
         <button type="button" onclick="pickAll(event)">Все бойцы</button>
@@ -152,21 +155,23 @@ window.pickGroup = (groupKey, e) => {
   updateFightersDropdownText();
   toast('Выбрана группа: ' + groupName(groupKey), 'ok');
 };
+
 window.pickAllKids = (e) => {
   if (e) e.stopPropagation();
   document.querySelectorAll('#tr_dropdown_menu .tr_fighter').forEach(cb => {
     const f = DB.fighters.find(x => x.id === cb.value);
-    const g = FIGHTER_GROUPS.find(x => x.key === f?.group);
-    cb.checked = !!(f && g && g.isKids);
+    cb.checked = !!(f && groupIsKids(f.group));
   });
   updateFightersDropdownText();
   toast('Выбраны все дети', 'ok');
 };
+
 window.pickAll = (e) => {
   if (e) e.stopPropagation();
   document.querySelectorAll('#tr_dropdown_menu .tr_fighter').forEach(cb => cb.checked = true);
   updateFightersDropdownText();
 };
+
 window.clearAllFighters = (e) => {
   if (e) e.stopPropagation();
   document.querySelectorAll('#tr_dropdown_menu .tr_fighter').forEach(cb => cb.checked = false);
@@ -208,6 +213,7 @@ window.deleteTraining = (fighterId, dateStr, idx) => {
 
 /* ================== ДОБАВЛЕНИЕ БОЙЦА ================== */
 window.openAddFighterModal = () => {
+  const groups = getFighterGroups();
   Modal.open(`
     <div class="modal" onclick="event.stopPropagation()">
       <h3>Новый боец</h3>
@@ -218,7 +224,7 @@ window.openAddFighterModal = () => {
       <div id="nf_age_hint" style="margin-top:6px;font-size:13px;color:#666"></div>
       <label>Группа</label>
       <select id="nf_group">
-        ${FIGHTER_GROUPS.map(g => `<option value="${g.key}">${g.name}</option>`).join('')}
+        ${groups.map(g => `<option value="${g.key}">${g.name}</option>`).join('')}
       </select>
       <div class="modal-actions">
         <button class="secondary" onclick="Modal.close()">Отмена</button>
@@ -612,17 +618,30 @@ function drawMeasurementChart(canvasId, f, measureId) {
   });
 }
 
-/* ================== СПИСОК И КАРТОЧКА БОЙЦА ================== */
+/* ================== СПИСОК И КАРТОЧКА БОЙЦА ==================
+   Здесь же — кнопки управления группами: создать, переименовать, удалить.
+*/
 function renderFighters() {
-  const groups = FIGHTER_GROUPS.map(g => ({
+  const groups = getFighterGroups().map((g, gi) => ({
     ...g,
+    gi,
     fighters: DB.fighters.filter(f => f.group === g.key)
   }));
+
   app.innerHTML = `
     <h2>Бойцы</h2>
-    <button onclick="openAddFighterModal()">+ Добавить бойца</button>
+    <div class="row" style="margin-bottom:16px">
+      <button onclick="openAddFighterModal()">+ Добавить бойца</button>
+      <button onclick="openAddGroupModal()">+ Добавить группу</button>
+    </div>
     ${groups.map(g => `
-      <h3>${g.name} (${g.fighters.length})</h3>
+      <div class="group-head">
+        <h3>${g.name} (${g.fighters.length})</h3>
+        <div class="group-actions">
+          <button onclick="openRenameGroupModal(${g.gi})" title="Переименовать группу">✎</button>
+          <button class="danger" onclick="deleteFighterGroup(${g.gi})" title="Удалить группу">✕</button>
+        </div>
+      </div>
       <div class="fighters-grid">${g.fighters.map(fighterCard).join('') || '<i>пусто</i>'}</div>
     `).join('')}
   `;
@@ -648,6 +667,7 @@ function renderFighterDetail() {
   if (!f) return renderFighters();
   const age = calcAge(f.birthDate);
   const ageText = age === '—' ? '—' : `${age} лет`;
+  const groups = getFighterGroups();
 
   app.innerHTML = `
     <button onclick="state.tab='fighters';render()">← Назад</button>
@@ -657,6 +677,9 @@ function renderFighterDetail() {
       <div class="card">
         <img id="fphoto" src="${f.photo || 'https://via.placeholder.com/120'}" width="120"/>
         <input type="file" accept="image/*" onchange="uploadPhoto(event)"/>
+        <p style="font-size:12px;color:#888;margin-top:4px;">
+          Фото автоматически сжимается до 300×300 — чтобы не переполнять память.
+        </p>
         <p><label>ФИО <input value="${f.name}" onchange="upd('name',this.value)"/></label></p>
         <p><label>Дата рождения <input type="date" value="${f.birthDate}" onchange="updBirth(this.value)"/></label>
            <span id="ageBadge" class="age-hint">${ageText}</span></p>
@@ -669,7 +692,7 @@ function renderFighterDetail() {
           </select></label></p>
         <p><label>Группа
           <select onchange="upd('group',this.value)">
-            ${FIGHTER_GROUPS.map(g => `<option value="${g.key}" ${f.group===g.key?'selected':''}>${g.name}</option>`).join('')}
+            ${groups.map(g => `<option value="${g.key}" ${f.group===g.key?'selected':''}>${g.name}</option>`).join('')}
           </select></label></p>
         <button onclick="delFighter('${f.id}')" class="danger">Удалить бойца</button>
       </div>
@@ -730,7 +753,6 @@ function renderAttendanceCard(f) {
   const now = new Date();
   const monthStats = getAttendanceStatsMonth(f, now.getFullYear(), now.getMonth());
 
-  // Последние 10 отметок
   const recent = (f.attendance || [])
     .slice()
     .sort((a,b) => b.date.localeCompare(a.date))
@@ -1032,13 +1054,89 @@ window.delFighter = id => {
   DB.fighters = DB.fighters.filter(x => x.id !== id);
   saveData(DB); state.tab = 'fighters'; render();
 };
-window.uploadPhoto = e => {
-  const file = e.target.files[0]; if (!file) return;
-  const r = new FileReader();
-  r.onload = ev => {
-    const f = DB.fighters.find(x => x.id === state.currentFighter);
-    f.photo = ev.target.result; saveData(DB);
-    document.getElementById('fphoto').src = ev.target.result;
+
+/* ================== ЗАГРУЗКА ФОТО СО СЖАТИЕМ ================== */
+window.uploadPhoto = (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  if (!file.type.startsWith('image/')) {
+    toast('Это не изображение', 'error');
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = (e) => {
+    const img = new Image();
+
+    img.onload = () => {
+      const MAX_SIDE = 300;
+      let w = img.width;
+      let h = img.height;
+
+      if (w > h && w > MAX_SIDE) {
+        h = Math.round(h * MAX_SIDE / w);
+        w = MAX_SIDE;
+      } else if (h > w && h > MAX_SIDE) {
+        w = Math.round(w * MAX_SIDE / h);
+        h = MAX_SIDE;
+      } else if (w === h && w > MAX_SIDE) {
+        w = MAX_SIDE;
+        h = MAX_SIDE;
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+
+      let dataUrl;
+      try {
+        dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+      } catch (err) {
+        toast('Не удалось обработать фото', 'error');
+        return;
+      }
+
+      const sizeKB = Math.round(dataUrl.length / 1024);
+      if (sizeKB > 200) {
+        const ok = confirm(
+          `Фото весит ${sizeKB} КБ. Это больше обычного.\n\n` +
+          `Всё равно сохранить?`
+        );
+        if (!ok) return;
+      }
+
+      const f = DB.fighters.find(x => x.id === state.currentFighter);
+      if (!f) {
+        toast('Боец не найден', 'error');
+        return;
+      }
+
+      f.photo = dataUrl;
+      saveData(DB);
+
+      const imgEl = document.getElementById('fphoto');
+      if (imgEl) imgEl.src = dataUrl;
+
+      toast(`Фото сохранено (${sizeKB} КБ)`, 'ok');
+    };
+
+    img.onerror = () => {
+      toast('Не удалось прочитать изображение', 'error');
+    };
+
+    img.src = e.target.result;
   };
-  r.readAsDataURL(file);
+
+  reader.onerror = () => {
+    toast('Не удалось прочитать файл', 'error');
+  };
+
+  reader.readAsDataURL(file);
 };

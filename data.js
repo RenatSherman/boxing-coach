@@ -1,5 +1,8 @@
 /* ============================================================
    DATA.JS — данные, справочники, облако, авторизация, утилиты
+   + защита от дублей при загрузке из облака
+   + проверка размера JSON при отправке
+   + гибкие группы бойцов (создание / переименование / удаление)
    ============================================================ */
 
 /* ================== SUPABASE CONFIG ================== */
@@ -9,19 +12,43 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 /* ================== SCALE ================== */
 const MAX_SCORE = 10;
 
-/* ================== ГРУППЫ БОЙЦОВ ================== */
-const FIGHTER_GROUPS = [
-  { key: 'kids_junior', name: 'Младшая группа', short: 'Младшая', isKids: true },
-  { key: 'kids_middle', name: 'Средняя группа', short: 'Средняя', isKids: true },
-  { key: 'adults', name: 'Взрослые', short: 'Взрослые', isKids: false }
+/* ================== ГРУППЫ БОЙЦОВ ПО УМОЛЧАНИЮ ==================
+   Используются только при первом запуске — дальше живут в DB.fighterGroups.
+*/
+const DEFAULT_FIGHTER_GROUPS = [
+  { key: 'kids_junior', name: 'Младшая группа', isKids: true },
+  { key: 'kids_middle', name: 'Средняя группа', isKids: true },
+  { key: 'adults', name: 'Взрослые', isKids: false }
 ];
+
+function makeGroupShort(name) {
+  if (!name) return '—';
+  const trimmed = String(name).trim();
+  if (trimmed.length <= 10) return trimmed;
+  return trimmed.slice(0, 9) + '…';
+}
+
+function getFighterGroups() {
+  if (!DB || !Array.isArray(DB.fighterGroups) || !DB.fighterGroups.length) {
+    return structuredClone(DEFAULT_FIGHTER_GROUPS);
+  }
+  return DB.fighterGroups;
+}
+
+function groupByKey(key) {
+  return getFighterGroups().find(g => g.key === key) || null;
+}
 function groupName(key) {
-  const g = FIGHTER_GROUPS.find(x => x.key === key);
+  const g = groupByKey(key);
   return g ? g.name : '—';
 }
 function groupShort(key) {
-  const g = FIGHTER_GROUPS.find(x => x.key === key);
-  return g ? g.short : '—';
+  const g = groupByKey(key);
+  return g ? makeGroupShort(g.name) : '—';
+}
+function groupIsKids(key) {
+  const g = groupByKey(key);
+  return g ? !!g.isKids : false;
 }
 
 /* ================== Справочники по умолчанию ================== */
@@ -78,7 +105,7 @@ const DEFAULT_MEASUREMENT_GROUPS = [
   { key: 'test1', name: 'Силовые замеры', measurements: [
     { id: 'pushup', name: 'Отжимания', unit: 'раз' },
     { id: 'pullup', name: 'Подтягивания', unit: 'раз' },
-    { id: 'abs', name: 'Пресс', unit: 'раз' }
+    { id: 'abspress', name: 'Пресс', unit: 'раз' }
   ]}
 ];
 
@@ -89,6 +116,7 @@ const PENDING_SYNC_KEY = 'boxingCoach_pendingSync';
 function defaultDB() {
   return {
     fighters: [],
+    fighterGroups: structuredClone(DEFAULT_FIGHTER_GROUPS),
     directions: structuredClone(DEFAULT_DIRECTIONS),
     exerciseGroups: structuredClone(DEFAULT_EXERCISE_GROUPS),
     measurementGroups: structuredClone(DEFAULT_MEASUREMENT_GROUPS),
@@ -97,11 +125,34 @@ function defaultDB() {
 }
 
 /* ================== МИГРАЦИИ ================== */
+
+function migrateFighterGroupsList(db) {
+  if (!db) return db;
+  if (!Array.isArray(db.fighterGroups) || !db.fighterGroups.length) {
+    db.fighterGroups = structuredClone(DEFAULT_FIGHTER_GROUPS);
+  }
+  const seen = new Set();
+  db.fighterGroups = db.fighterGroups.filter(g => {
+    if (!g || !g.key || seen.has(g.key)) return false;
+    seen.add(g.key);
+    if (!g.name) g.name = 'Группа';
+    g.isKids = !!g.isKids;
+    return true;
+  });
+  if (!db.fighterGroups.length) {
+    db.fighterGroups = structuredClone(DEFAULT_FIGHTER_GROUPS);
+  }
+  return db;
+}
+
 function migrateFighterGroups(db) {
   if (!db || !db.fighters) return db;
+  migrateFighterGroupsList(db);
+  const validKeys = db.fighterGroups.map(g => g.key);
+  const fallback = validKeys[0];
   db.fighters.forEach(f => {
     if (f.group === 'kids') f.group = 'kids_junior';
-    if (!FIGHTER_GROUPS.find(g => g.key === f.group)) f.group = 'kids_junior';
+    if (!validKeys.includes(f.group)) f.group = fallback;
   });
   return db;
 }
@@ -183,7 +234,6 @@ const Cloud = (() => {
   }
 
   async function init() {
-    // Показываем статус сразу — ещё до попытки подключиться
     if (!navigator.onLine) setBadge('offline');
 
     try {
@@ -203,8 +253,6 @@ const Cloud = (() => {
       console.warn('[Cloud] Ошибка инициализации:', e);
       setBadge('error'); enabled = false;
 
-      // Если интернета нет, но сессия была сохранена ранее — пускаем в приложение
-      // с локальными данными. Это ключевой момент для офлайн-режима.
       if (!navigator.onLine) {
         try {
           const { data: sessionData } = await supabase.auth.getSession();
@@ -225,9 +273,16 @@ const Cloud = (() => {
 
   async function loadFromCloud() {
     if (!enabled || !supabase || !userId) return;
+
     const { data: cloudRows, error } = await supabase
-      .from('coach_data').select('data, updated_at').eq('user_id', userId);
+      .from('coach_data')
+      .select('data, updated_at')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false })
+      .limit(1);
+
     if (error) throw error;
+
     if (cloudRows && cloudRows.length > 0) {
       const cloudData = cloudRows[0];
       const remoteTs = new Date(cloudData.updated_at).getTime();
@@ -277,27 +332,31 @@ const Cloud = (() => {
 
   async function pushToCloud() {
     if (!enabled || !supabase || !userId) return;
+
+    const jsonStr = JSON.stringify(DB);
+    const sizeKB = Math.round(jsonStr.length / 1024);
+    if (sizeKB > 900) {
+      console.warn('[Cloud] JSON слишком большой:', sizeKB, 'КБ');
+      toast(`⚠️ Данные весят ${sizeKB} КБ. Возможно, фото слишком большие.`, 'error');
+    }
+
     const payload = { user_id: userId, data: DB, updated_at: new Date().toISOString() };
     const { error } = await supabase.from('coach_data').upsert(payload, { onConflict: 'user_id' });
     if (error) throw error;
   }
 
   function push() {
-    // 1. Всегда сохраняем локально — это работает без интернета
     saveLocal(DB);
     localStorage.setItem(STORE_KEY + '_ts', Date.now());
 
-    // 2. Если облако не подключено — выходим
     if (!enabled) { setBadge('offline'); return; }
 
-    // 3. Если интернета нет — помечаем, что нужно дослать позже
     if (!navigator.onLine) {
       localStorage.setItem(PENDING_SYNC_KEY, '1');
       setBadge('offline');
       return;
     }
 
-    // 4. Пробуем отправить в облако
     setBadge('syncing');
     clearTimeout(saveTimer);
     saveTimer = setTimeout(async () => {
@@ -313,7 +372,6 @@ const Cloud = (() => {
     }, 600);
   }
 
-  /* Досылаем накопленные изменения, когда интернет вернулся */
   async function trySyncPending() {
     if (!navigator.onLine) return;
     if (!enabled || !userId) return;
@@ -388,7 +446,6 @@ window.addEventListener('online', () => {
 window.addEventListener('offline', () => {
   console.log('[Cloud] Интернет пропал — работаем офлайн');
 });
-// Раз в минуту на всякий случай пробуем дослать
 setInterval(() => Cloud.trySyncPending(), 60000);
 
 function saveData(d) {
@@ -538,7 +595,6 @@ function getForgottenFighters(daysThreshold = 14) {
   });
 }
 
-/* Отображение тренировки в календаре бойца */
 function trainingDisplayName(training, fighter) {
   if (training.blockId) {
     return exerciseName(training.blockId);
@@ -546,7 +602,6 @@ function trainingDisplayName(training, fighter) {
   return fighter ? groupName(fighter.group) : 'Тренировка';
 }
 
-/* Агрегация событий */
 function aggregateSlotEvents(events) {
   if (!events.length) return [];
 
@@ -684,13 +739,7 @@ function getLastTrainingDays(f) {
   return Math.floor((Date.now() - lastTs) / 86400000);
 }
 
-/* ================== ПОСЕЩАЕМОСТЬ (ATTENDANCE) ==================
-   fighter.attendance = [
-     { date, hour, blockId, mode, present, guest: true|undefined },
-     ...
-   ]
-   guest: true — отметка внепланового бойца (пришёл не из этой группы).
-*/
+/* ================== ПОСЕЩАЕМОСТЬ (ATTENDANCE) ================== */
 
 function getTrainingsForDate(ds) {
   const trainings = [];
@@ -863,10 +912,8 @@ function formatDayText(ds) {
   return parts.join('\n\n────────────\n\n');
 }
 
-/* ================== ВНЕПЛАНОВЫЕ БОЙЦЫ (GUESTS) ==================
-   Добавляем бойца в существующую тренировку (час + группа), даже если
-   его там изначально не было.
-*/
+/* ================== ВНЕПЛАНОВЫЕ БОЙЦЫ (GUESTS) ================== */
+
 function addGuestToTraining(fighterId, ds, hour, hostGroupKey, hostBlockId, hostMode) {
   const f = DB.fighters.find(x => x.id === fighterId);
   if (!f) return false;

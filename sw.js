@@ -1,9 +1,10 @@
 /* ============================================================
    SW.JS — Service Worker для офлайн-режима
-   Сохраняет файлы приложения и библиотеки, чтобы открывалось без сети.
+   На localhost — не кэширует (чтобы разработка была мгновенной).
+   На проде (GitHub Pages) — кэширует всё для офлайн-работы.
    ============================================================ */
 
-const CACHE_NAME = 'boxcoach-v1';
+const CACHE_NAME = 'boxcoach-v2';
 
 // Файлы приложения (свои)
 const APP_FILES = [
@@ -28,6 +29,21 @@ const CDN_FILES = [
   'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
 ];
+
+/* Проверяем, локальная ли это разработка.
+   На localhost / 127.0.0.1 — service worker вообще не вмешивается.
+   На GitHub Pages — работает как обычно. */
+function isLocalDev(url) {
+  try {
+    const u = new URL(url);
+    return u.hostname === 'localhost'
+        || u.hostname === '127.0.0.1'
+        || u.hostname === '0.0.0.0'
+        || u.hostname === '[::1]';
+  } catch (e) {
+    return false;
+  }
+}
 
 // Установка: скачиваем и кладём в кэш
 self.addEventListener('install', event => {
@@ -59,12 +75,18 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Запросы: сначала ищем в кэше, потом в сети
+// Запросы: на localhost — пропускаем, на проде — сначала кэш, потом сеть
 self.addEventListener('fetch', event => {
   const req = event.request;
 
   // Нас интересуют только GET-запросы
   if (req.method !== 'GET') return;
+
+  // На localhost (Live Server) — не вмешиваемся вообще.
+  // Это делает разработку мгновенной: файлы идут напрямую с диска.
+  if (isLocalDev(req.url)) {
+    return; // браузер обрабатывает запрос как обычно
+  }
 
   // Запросы к Supabase (API) — НЕ кэшируем, они должны идти в сеть
   if (req.url.includes('supabase.co')) return;

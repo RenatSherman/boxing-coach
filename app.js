@@ -1,5 +1,6 @@
 /* ============================================================
    APP.JS — роутинг, окна, дашборд, сравнение, настройки, init
+   + управление группами бойцов (на вкладке «Бойцы»)
    ============================================================ */
 
 const app = document.getElementById('app');
@@ -128,9 +129,13 @@ function render() {
 
 /* ================== ДАШБОРД ================== */
 function renderDashboard() {
-  const kidsJunior = DB.fighters.filter(f => f.group === 'kids_junior');
-  const kidsMiddle = DB.fighters.filter(f => f.group === 'kids_middle');
-  const adults = DB.fighters.filter(f => f.group === 'adults');
+  const groups = getFighterGroups();
+
+  const groupsCards = groups.map(g => {
+    const count = DB.fighters.filter(f => f.group === g.key).length;
+    return `<div class="card"><h3>${g.name}</h3><p class="big">${count}</p></div>`;
+  }).join('');
+
   const avg = arr => arr.length ? (arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(1) : '—';
   const fighterAvg = f => {
     const end = getEndAssess(f);
@@ -160,9 +165,7 @@ function renderDashboard() {
     ` : ''}
 
     <div class="grid">
-      <div class="card"><h3>Младшая группа</h3><p class="big">${kidsJunior.length}</p></div>
-      <div class="card"><h3>Средняя группа</h3><p class="big">${kidsMiddle.length}</p></div>
-      <div class="card"><h3>Взрослые</h3><p class="big">${adults.length}</p></div>
+      ${groupsCards}
       <div class="card"><h3>Средний рост</h3><p class="big">${avg(DB.fighters.map(f=>+f.height))} см</p></div>
     </div>
 
@@ -394,6 +397,129 @@ window.logoutCloud = async () => {
 
 window.updSetting = (k, v) => { DB.settings[k] = v; saveData(DB); };
 
+/* ================== УПРАВЛЕНИЕ ГРУППАМИ БОЙЦОВ ==================
+   Живёт на вкладке «Бойцы». Настройки не трогаем.
+*/
+
+/* Открыть модалку создания группы */
+window.openAddGroupModal = () => {
+  Modal.open(`
+    <div class="modal" onclick="event.stopPropagation()">
+      <h3>Новая группа бойцов</h3>
+      <label>Название группы</label>
+      <input id="newGroupName" placeholder="Например, Подростки" autofocus>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:14px;">
+        <input type="checkbox" id="newGroupIsKids" style="width:auto;margin:0;">
+        <span>Детская группа</span>
+      </label>
+      <p style="font-size:12px;color:#888;margin:6px 0 0;">
+        Галочка влияет на кнопку «Все дети» в календаре.
+      </p>
+      <div class="modal-actions">
+        <button class="secondary" onclick="Modal.close()">Отмена</button>
+        <button class="primary" onclick="submitAddGroup()">Создать</button>
+      </div>
+    </div>
+  `);
+  setTimeout(() => document.getElementById('newGroupName')?.focus(), 50);
+};
+
+window.submitAddGroup = () => {
+  const nameInput = document.getElementById('newGroupName');
+  const name = nameInput ? nameInput.value.trim() : '';
+  const isKids = document.getElementById('newGroupIsKids')?.checked || false;
+
+  if (!name) { toast('Введите название группы', 'error'); return; }
+
+  // Проверка: нет ли уже группы с таким именем
+  const exists = getFighterGroups().some(g => g.name.toLowerCase() === name.toLowerCase());
+  if (exists) { toast('Группа с таким названием уже есть', 'error'); return; }
+
+  DB.fighterGroups = DB.fighterGroups || [];
+  DB.fighterGroups.push({
+    key: 'g_' + uid(),
+    name,
+    isKids
+  });
+  saveData(DB);
+  Modal.close();
+  toast('Группа добавлена', 'ok');
+  render();
+};
+
+/* Открыть модалку переименования группы */
+window.openRenameGroupModal = (gi) => {
+  const g = getFighterGroups()[gi];
+  if (!g) return;
+  Modal.open(`
+    <div class="modal" onclick="event.stopPropagation()">
+      <h3>Переименовать группу</h3>
+      <label>Название</label>
+      <input id="renameGroupName" value="${g.name}" autofocus>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:14px;">
+        <input type="checkbox" id="renameGroupIsKids" style="width:auto;margin:0;" ${g.isKids?'checked':''}>
+        <span>Детская группа</span>
+      </label>
+      <div class="modal-actions">
+        <button class="secondary" onclick="Modal.close()">Отмена</button>
+        <button class="primary" onclick="submitRenameGroup(${gi})">Сохранить</button>
+      </div>
+    </div>
+  `);
+  setTimeout(() => {
+    const inp = document.getElementById('renameGroupName');
+    if (inp) { inp.focus(); inp.select(); }
+  }, 50);
+};
+
+window.submitRenameGroup = (gi) => {
+  const g = getFighterGroups()[gi];
+  if (!g) return;
+  const nameInput = document.getElementById('renameGroupName');
+  const name = nameInput ? nameInput.value.trim() : '';
+  const isKids = document.getElementById('renameGroupIsKids')?.checked || false;
+
+  if (!name) { toast('Введите название', 'error'); return; }
+
+  g.name = name;
+  g.isKids = isKids;
+  saveData(DB);
+  Modal.close();
+  toast('Группа обновлена', 'ok');
+  render();
+};
+
+/* Удалить группу */
+window.deleteFighterGroup = (gi) => {
+  const groups = getFighterGroups();
+  const g = groups[gi];
+  if (!g) return;
+
+  const fightersInGroup = DB.fighters.filter(f => f.group === g.key);
+  if (fightersInGroup.length > 0) {
+    alert(
+      `Нельзя удалить группу «${g.name}».\n\n` +
+      `В ней ${fightersInGroup.length} бойц${fightersInGroup.length === 1 ? '' : 'ов'}.\n\n` +
+      `Сначала переведите их в другую группу, потом удаляйте.`
+    );
+    return;
+  }
+
+  if (groups.length <= 1) {
+    alert('Нельзя удалить последнюю группу. Должна остаться хотя бы одна.');
+    return;
+  }
+
+  if (!confirm(`Удалить группу «${g.name}»?`)) return;
+
+  DB.fighterGroups.splice(gi, 1);
+  saveData(DB);
+  toast('Группа удалена', 'ok');
+  render();
+};
+
+/* ================== УПРАВЛЕНИЕ НАПРАВЛЕНИЯМИ ================== */
+
 window.addDirection = () => {
   const name = prompt('Название направления:'); if (!name) return;
   const newDir = { key: 'd_' + uid(), name, criteria: [] };
@@ -444,6 +570,8 @@ window.deleteCriterion = (di, ci) => {
   DB.directions[di].criteria.splice(ci, 1);
   saveData(DB); render();
 };
+
+/* ================== ЭКСПОРТ / ИМПОРТ ================== */
 
 window.exportAllJSON = () => {
   const blob = new Blob([JSON.stringify(DB, null, 2)], { type: 'application/json' });
