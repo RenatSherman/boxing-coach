@@ -84,6 +84,7 @@ const DEFAULT_MEASUREMENT_GROUPS = [
 
 /* ================== ХРАНИЛИЩЕ ================== */
 const STORE_KEY = 'boxingCoachV19';
+const PENDING_SYNC_KEY = 'boxingCoach_pendingSync';
 
 function defaultDB() {
   return {
@@ -177,11 +178,14 @@ const Cloud = (() => {
     badge.className = 'sync-badge ' + state;
     badge.title = state === 'online' ? 'Облако: синхронизировано'
                 : state === 'syncing' ? 'Облако: синхронизация…'
-                : state === 'offline' ? 'Локальный режим'
+                : state === 'offline' ? 'Локальный режим (офлайн)'
                 : 'Ошибка синхронизации';
   }
 
   async function init() {
+    // Показываем статус сразу — ещё до попытки подключиться
+    if (!navigator.onLine) setBadge('offline');
+
     try {
       if (!supabase) supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
       const { data: sessionData } = await supabase.auth.getSession();
@@ -198,6 +202,24 @@ const Cloud = (() => {
     } catch (e) {
       console.warn('[Cloud] Ошибка инициализации:', e);
       setBadge('error'); enabled = false;
+
+      // Если интернета нет, но сессия была сохранена ранее — пускаем в приложение
+      // с локальными данными. Это ключевой момент для офлайн-режима.
+      if (!navigator.onLine) {
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const user = sessionData?.session?.user;
+          if (user) {
+            userId = user.id; userEmail = user.email; enabled = true;
+            setBadge('offline');
+            document.getElementById('lockScreen').style.display = 'none';
+            document.getElementById('appRoot').style.display = 'block';
+            if (typeof render === 'function') render();
+          }
+        } catch (e2) {
+          console.warn('[Cloud] Не удалось войти офлайн:', e2);
+        }
+      }
     }
   }
 
@@ -261,15 +283,50 @@ const Cloud = (() => {
   }
 
   function push() {
+    // 1. Всегда сохраняем локально — это работает без интернета
     saveLocal(DB);
     localStorage.setItem(STORE_KEY + '_ts', Date.now());
+
+    // 2. Если облако не подключено — выходим
     if (!enabled) { setBadge('offline'); return; }
+
+    // 3. Если интернета нет — помечаем, что нужно дослать позже
+    if (!navigator.onLine) {
+      localStorage.setItem(PENDING_SYNC_KEY, '1');
+      setBadge('offline');
+      return;
+    }
+
+    // 4. Пробуем отправить в облако
     setBadge('syncing');
     clearTimeout(saveTimer);
     saveTimer = setTimeout(async () => {
-      try { await pushToCloud(); setBadge('online'); }
-      catch (e) { console.error(e); setBadge('error'); }
+      try {
+        await pushToCloud();
+        setBadge('online');
+        localStorage.removeItem(PENDING_SYNC_KEY);
+      } catch (e) {
+        console.error('[Cloud] Ошибка отправки:', e);
+        localStorage.setItem(PENDING_SYNC_KEY, '1');
+        setBadge('offline');
+      }
     }, 600);
+  }
+
+  /* Досылаем накопленные изменения, когда интернет вернулся */
+  async function trySyncPending() {
+    if (!navigator.onLine) return;
+    if (!enabled || !userId) return;
+    if (localStorage.getItem(PENDING_SYNC_KEY) !== '1') return;
+
+    try {
+      await pushToCloud();
+      localStorage.removeItem(PENDING_SYNC_KEY);
+      setBadge('online');
+      console.log('[Cloud] Досылка выполнена');
+    } catch (e) {
+      console.warn('[Cloud] Досылка не удалась:', e);
+    }
   }
 
   async function register(email, password) {
@@ -299,6 +356,7 @@ const Cloud = (() => {
     DB = defaultDB();
     saveLocal(DB);
     localStorage.removeItem(STORE_KEY + '_ts');
+    localStorage.removeItem(PENDING_SYNC_KEY);
     document.getElementById('lockScreen').style.display = 'flex';
     document.getElementById('appRoot').style.display = 'none';
     setBadge('offline');
@@ -315,11 +373,23 @@ const Cloud = (() => {
 
   return {
     init, push, register, login, logout, onAuthChanged,
+    trySyncPending,
     isEnabled: () => enabled,
     getUser: () => ({ userId, userEmail, enabled }),
     getSupabase: () => supabase
   };
 })();
+
+/* ================== СЛУШАЕМ СЕТЬ ================== */
+window.addEventListener('online', () => {
+  console.log('[Cloud] Интернет вернулся');
+  Cloud.trySyncPending();
+});
+window.addEventListener('offline', () => {
+  console.log('[Cloud] Интернет пропал — работаем офлайн');
+});
+// Раз в минуту на всякий случай пробуем дослать
+setInterval(() => Cloud.trySyncPending(), 60000);
 
 function saveData(d) {
   if (d) DB = d;
@@ -654,8 +724,6 @@ function getTrainingSessions(ds) {
   trainings.forEach(t => {
     let key;
     if (t.mode === 'group') {
-      // Ключ сессии — час + группа, но только для НЕ гостей.
-      // Если гость — он попадает в отдельную сессию, чтобы не смешивать с основной группой.
       key = t.isGuest
         ? `${t.hour}-guest-${t.fighterId}`
         : `${t.hour}-group-${t.group}`;
@@ -798,7 +866,6 @@ function formatDayText(ds) {
 /* ================== ВНЕПЛАНОВЫЕ БОЙЦЫ (GUESTS) ==================
    Добавляем бойца в существующую тренировку (час + группа), даже если
    его там изначально не было.
-   Сохраняем в календарь бойца с пометкой guest: true.
 */
 function addGuestToTraining(fighterId, ds, hour, hostGroupKey, hostBlockId, hostMode) {
   const f = DB.fighters.find(x => x.id === fighterId);
@@ -806,11 +873,9 @@ function addGuestToTraining(fighterId, ds, hour, hostGroupKey, hostBlockId, host
 
   f.calendar[ds] = f.calendar[ds] || [];
 
-  // Проверка: есть ли уже тренировка на этот час
   const already = f.calendar[ds].find(s => s.hour === hour);
   if (already) return false;
 
-  // Комментарий: «Внеплановый: пришёл на [группа]»
   const hostGroupName = groupName(hostGroupKey);
   const comment = `Внеплановый: пришёл на ${hostGroupName}`;
 
@@ -837,7 +902,6 @@ function removeGuestFromTraining(fighterId, ds, hour) {
   f.calendar[ds].splice(idx, 1);
   if (!f.calendar[ds].length) delete f.calendar[ds];
 
-  // Также удаляем отметку посещаемости
   if (f.attendance) {
     f.attendance = f.attendance.filter(a => !(a.date === ds && a.hour === hour));
   }
@@ -846,11 +910,9 @@ function removeGuestFromTraining(fighterId, ds, hour) {
   return true;
 }
 
-/* Список бойцов, которых ЕЩЁ НЕТ в данной тренировке */
 function getFightersNotInSession(ds, hour, sessionFighterIds) {
   return DB.fighters.filter(f => {
     if (sessionFighterIds.includes(f.id)) return false;
-    // Проверяем: нет ли уже в этот час у бойца другой тренировки
     const has = (f.calendar[ds] || []).some(s => s.hour === hour);
     if (has) return false;
     return true;

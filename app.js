@@ -479,24 +479,15 @@ LockScreen.init();
 Cloud.init();
 setActiveTab('dashboard');
 
+/* ================== SERVICE WORKER (офлайн-режим) ================== */
 if ('serviceWorker' in navigator) {
-  const swCode = `
-    const CACHE = 'boxcoach-v19';
-    self.addEventListener('install', e => self.skipWaiting());
-    self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
-    self.addEventListener('fetch', e => {
-      if (e.request.method !== 'GET') return;
-      e.respondWith(
-        caches.match(e.request).then(r => r || fetch(e.request).then(resp => {
-          if (resp.ok && e.request.url.startsWith(self.location.origin)) {
-            const clone = resp.clone();
-            caches.open(CACHE).then(c => c.put(e.request, clone));
-          }
-          return resp;
-        }).catch(()=>caches.match('./index.html')))
-      );
-    });
-  `;
-  const blob = new Blob([swCode], { type: 'application/javascript' });
-  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js', { scope: './' })
+      .then(reg => {
+        console.log('[SW] Зарегистрирован, scope:', reg.scope);
+      })
+      .catch(err => {
+        console.warn('[SW] Не удалось зарегистрировать:', err);
+      });
+  });
 }
