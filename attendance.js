@@ -1,6 +1,7 @@
 /* ============================================================
    ATTENDANCE.JS — раздел «Отметка тренировки»
    Чек-лист посещений + экспорт + внеплановые бойцы
+   + умная подсказка при отправке без интернета
    ============================================================ */
 
 const Attendance = (() => {
@@ -153,7 +154,6 @@ const Attendance = (() => {
     const session = findSessionByKey(sessionKey);
     if (!session) return;
 
-    // Список бойцов, которых ещё нет в сессии
     const presentIds = session.fighters.map(f => f.id);
     const candidates = getFightersNotInSession(session.date, session.hour, presentIds);
 
@@ -162,7 +162,6 @@ const Attendance = (() => {
       return;
     }
 
-    // Группируем по группам для удобства
     const byGroup = {};
     candidates.forEach(f => {
       if (!byGroup[f.group]) byGroup[f.group] = [];
@@ -307,17 +306,22 @@ const Attendance = (() => {
     shareText(text);
   }
 
-  function copyToClipboard(text) {
+  /* ================== БУФЕР ОБМЕНА ================== */
+
+  function copyToClipboard(text, silent) {
+    const onSuccess = () => {
+      if (!silent) toast('Список скопирован в буфер', 'ok');
+    };
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text)
-        .then(() => toast('Список скопирован в буфер', 'ok'))
-        .catch(() => fallbackCopy(text));
+        .then(onSuccess)
+        .catch(() => fallbackCopy(text, silent));
     } else {
-      fallbackCopy(text);
+      fallbackCopy(text, silent);
     }
   }
 
-  function fallbackCopy(text) {
+  function fallbackCopy(text, silent) {
     const ta = document.createElement('textarea');
     ta.value = text;
     ta.style.position = 'fixed';
@@ -326,14 +330,32 @@ const Attendance = (() => {
     ta.select();
     try {
       document.execCommand('copy');
-      toast('Список скопирован', 'ok');
+      if (!silent) toast('Список скопирован', 'ok');
     } catch (e) {
-      toast('Не удалось скопировать', 'error');
+      if (!silent) toast('Не удалось скопировать', 'error');
     }
     document.body.removeChild(ta);
   }
 
+  /* ================== ОТПРАВКА С УЧЁТОМ ОФЛАЙНА ================== */
+
   function shareText(text) {
+    // Если интернета нет — копируем в буфер и показываем подсказку
+    if (!navigator.onLine) {
+      copyToClipboard(text, true); // silent — без отдельного тоста
+      setTimeout(() => {
+        alert(
+          '📴 Нет интернета.\n\n' +
+          'Текст списка скопирован в буфер обмена.\n\n' +
+          'Откройте мессенджер, вставьте текст и отправьте. ' +
+          'Сообщение уйдёт, как только появится связь.\n\n' +
+          '⚠️ Ваши отметки уже сохранены — они досылаются в облако автоматически.'
+        );
+      }, 100);
+      return;
+    }
+
+    // Если интернет есть — работаем как обычно
     if (navigator.share) {
       navigator.share({ text })
         .then(() => toast('Отправлено', 'ok'))
