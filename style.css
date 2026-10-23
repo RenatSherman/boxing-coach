@@ -658,3 +658,45 @@ button.ghost { background: #eee; color: #111; }
   .group-head h3 { font-size: 16px; }
   .group-actions button { width: 28px; height: 28px; font-size: 13px; }
 }
+
+/* ===== Аккордеон на Дашборде ===== */
+details.dash-accordion {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  margin-bottom: 12px;
+  overflow: hidden;
+  border: 1px solid transparent;
+}
+details.dash-accordion[open] {
+  border-color: #e5e7eb;
+}
+details.dash-accordion summary {
+  padding: 16px;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+  list-style: none; /* Прячем стандартный маркер */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+  color: #111;
+}
+details.dash-accordion summary::-webkit-details-marker {
+  display: none;
+}
+details.dash-accordion summary::after {
+  content: '▾';
+  font-size: 14px;
+  transition: transform 0.2s;
+  color: #888;
+}
+details.dash-accordion[open] summary::after {
+  transform: rotate(180deg);
+}
+details.dash-accordion .dash-accordion-content {
+  padding: 0 16px 16px 16px;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 12px;
+}

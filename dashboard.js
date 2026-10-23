@@ -43,34 +43,28 @@ function renderDashboard() {
       <div class="card"><h3>Средний рост</h3><p class="big">${avg(DB.fighters.map(f=>+f.height))} см</p></div>
     </div>
 
-    <div class="card">
-      <h3>⚠️ Требуют внимания (${forgotten.length})</h3>
-      ${forgotten.length === 0
-        ? '<p style="color:#16a34a">Все бойцы тренируются регулярно. Отлично!</p>'
-        : `<p style="font-size:13px;color:#666;margin-bottom:8px">Бойцы без тренировок 14+ дней</p>
-          <ul class="forgotten-list">
-            ${forgotten.map(({fighter, daysAgo}) => `
-              <li class="forgotten-item" onclick="openFighter('${fighter.id}')">
-                <div class="info">
-                  <b>${fighter.name}</b>
-                  <small>${groupName(fighter.group)}</small>
-                </div>
-                <span class="days">
-                  ${daysAgo === null ? 'Нет тренировок' : daysAgo + ' дн.'}
-                </span>
-              </li>
-            `).join('')}
-          </ul>`
-      }
-    </div>
-
     <h3>Календарь тренера</h3>
     ${CoachCalendar.render()}
 
-    ${renderRecentTrainingsCard(recent)}
+    <!-- Аккордеон: Последние тренировки -->
+    <details class="dash-accordion">
+      <summary>📋 Последние тренировки</summary>
+      <div class="dash-accordion-content">
+        ${renderRecentTrainingsContent(recent)}
+      </div>
+    </details>
+
+    <!-- Аккордеон: Требуют внимания -->
+    <details class="dash-accordion">
+      <summary>⚠️ Требуют внимания (${forgotten.length})</summary>
+      <div class="dash-accordion-content">
+        ${renderForgottenList(forgotten)}
+      </div>
+    </details>
 
     <h3>Топ-3 бойца (конец сезона, из ${MAX_SCORE})</h3>
     <ol>${top.map(f=>`<li>${f.name} — ${fighterAvg(f).toFixed(2)}</li>`).join('') || '<i>нет данных</i>'}</ol>
+    
     <h3>Динамика сезона</h3>
     <canvas id="dashChart" height="120"></canvas>
   `;
@@ -78,14 +72,9 @@ function renderDashboard() {
   if (DB.settings.notifications) Calendar.requestPerm();
 }
 
-function renderRecentTrainingsCard(recent) {
+function renderRecentTrainingsContent(recent) {
   if (!recent.length) {
-    return `
-      <div class="card">
-        <h3>📋 Последние тренировки</h3>
-        <p style="color:#666;font-size:14px;margin:0;">Пока тренировок нет. Назначьте первую в календаре.</p>
-      </div>
-    `;
+    return `<p style="color:#666;font-size:14px;margin:0;">Пока тренировок нет. Назначьте первую в календаре.</p>`;
   }
 
   const items = recent.map(t => {
@@ -111,15 +100,34 @@ function renderRecentTrainingsCard(recent) {
   }).join('');
 
   return `
-    <div class="card">
-      <h3>📋 Последние тренировки</h3>
-      <p style="color:#666;font-size:13px;margin-top:0;">
-        Свежие события по всем бойцам. Кликните, чтобы открыть карточку бойца.
-      </p>
-      <div class="journal-list">
-        ${items}
-      </div>
+    <p style="color:#666;font-size:13px;margin-top:0;">
+      Свежие события по всем бойцам. Кликните, чтобы открыть карточку бойца.
+    </p>
+    <div class="journal-list">
+      ${items}
     </div>
+  `;
+}
+
+function renderForgottenList(forgotten) {
+  if (forgotten.length === 0) {
+    return '<p style="color:#16a34a;margin:0;">Все бойцы тренируются регулярно. Отлично!</p>';
+  }
+  return `
+    <p style="font-size:13px;color:#666;margin-top:0;margin-bottom:8px">Бойцы без тренировок 14+ дней</p>
+    <ul class="forgotten-list" style="margin:0;">
+      ${forgotten.map(({fighter, daysAgo}) => `
+        <li class="forgotten-item" onclick="openFighter('${fighter.id}')">
+          <div class="info">
+            <b>${fighter.name}</b>
+            <small>${groupName(fighter.group)}</small>
+          </div>
+          <span class="days">
+            ${daysAgo === null ? 'Нет тренировок' : daysAgo + ' дн.'}
+          </span>
+        </li>
+      `).join('')}
+    </ul>
   `;
 }
 
