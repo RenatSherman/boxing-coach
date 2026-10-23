@@ -1,0 +1,150 @@
+/* ============================================================
+   DASHBOARD.JS — главный экран (дашборд)
+   ============================================================ */
+
+function renderDashboard() {
+  const groups = getFighterGroups();
+
+  const groupsCards = groups.map(g => {
+    const count = DB.fighters.filter(f => f.group === g.key).length;
+    return `<div class="card"><h3>${g.name}</h3><p class="big">${count}</p></div>`;
+  }).join('');
+
+  const avg = arr => arr.length ? (arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(1) : '—';
+  const fighterAvg = f => {
+    const end = getEndAssess(f);
+    return end ? avgAll(end.data) : 0;
+  };
+  const top = [...DB.fighters].sort((a,b)=>fighterAvg(b)-fighterAvg(a)).slice(0,3);
+
+  const forgotten = getForgottenFighters(14);
+  const recent = getRecentTrainings(15);
+
+  const today = todayStr();
+  const todaySessions = getTrainingSessions(today);
+
+  app.innerHTML = `
+    <h2>Дашборд</h2>
+
+    ${todaySessions.length ? `
+      <div class="card" style="border-left:4px solid #22c55e;background:#f0fdf4;">
+        <h3>📅 Сегодня тренировки (${todaySessions.length})</h3>
+        <p style="font-size:13px;color:#166534;margin:0 0 8px;">
+          Не забудьте отметить посещения.
+        </p>
+        <button class="success" onclick="state.tab='attendance';Attendance.setToday();setActiveTab('attendance');render()">
+          Перейти к отметке
+        </button>
+      </div>
+    ` : ''}
+
+    <div class="grid">
+      ${groupsCards}
+      <div class="card"><h3>Средний рост</h3><p class="big">${avg(DB.fighters.map(f=>+f.height))} см</p></div>
+    </div>
+
+    <div class="card">
+      <h3>⚠️ Требуют внимания (${forgotten.length})</h3>
+      ${forgotten.length === 0
+        ? '<p style="color:#16a34a">Все бойцы тренируются регулярно. Отлично!</p>'
+        : `<p style="font-size:13px;color:#666;margin-bottom:8px">Бойцы без тренировок 14+ дней</p>
+          <ul class="forgotten-list">
+            ${forgotten.map(({fighter, daysAgo}) => `
+              <li class="forgotten-item" onclick="openFighter('${fighter.id}')">
+                <div class="info">
+                  <b>${fighter.name}</b>
+                  <small>${groupName(fighter.group)}</small>
+                </div>
+                <span class="days">
+                  ${daysAgo === null ? 'Нет тренировок' : daysAgo + ' дн.'}
+                </span>
+              </li>
+            `).join('')}
+          </ul>`
+      }
+    </div>
+
+    <h3>Календарь тренера</h3>
+    ${CoachCalendar.render()}
+
+    ${renderRecentTrainingsCard(recent)}
+
+    <h3>Топ-3 бойца (конец сезона, из ${MAX_SCORE})</h3>
+    <ol>${top.map(f=>`<li>${f.name} — ${fighterAvg(f).toFixed(2)}</li>`).join('') || '<i>нет данных</i>'}</ol>
+    <h3>Динамика сезона</h3>
+    <canvas id="dashChart" height="120"></canvas>
+  `;
+  drawDashChart();
+  if (DB.settings.notifications) Calendar.requestPerm();
+}
+
+function renderRecentTrainingsCard(recent) {
+  if (!recent.length) {
+    return `
+      <div class="card">
+        <h3>📋 Последние тренировки</h3>
+        <p style="color:#666;font-size:14px;margin:0;">Пока тренировок нет. Назначьте первую в календаре.</p>
+      </div>
+    `;
+  }
+
+  const items = recent.map(t => {
+    const [y, m, d] = t.date.split('-');
+    const exName = t.blockId ? exerciseName(t.blockId) : 'Без упражнения';
+    const commentHtml = t.comment
+      ? `<br><small class="comment">💬 ${t.comment}</small>`
+      : '';
+    return `
+      <div class="journal-item" onclick="openFighter('${t.fighter.id}')">
+        <div class="j-date">
+          <b>${d}.${m}</b>
+          ${String(t.hour).padStart(2,'0')}:00
+        </div>
+        <div class="j-info">
+          <b>${t.fighter.name}</b>
+          <small>${exName}</small>
+          ${commentHtml}
+        </div>
+        <span class="j-mode ${t.mode}">${modeLabel(t.mode)}</span>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="card">
+      <h3>📋 Последние тренировки</h3>
+      <p style="color:#666;font-size:13px;margin-top:0;">
+        Свежие события по всем бойцам. Кликните, чтобы открыть карточку бойца.
+      </p>
+      <div class="journal-list">
+        ${items}
+      </div>
+    </div>
+  `;
+}
+
+function drawDashChart() {
+  const ctx = document.getElementById('dashChart');
+  if (!ctx || !DB.fighters.length) return;
+  if (ctx._chart) ctx._chart.destroy();
+  const labels = DB.fighters.map(f => f.name);
+  const startVals = DB.fighters.map(f => {
+    const s = getStartAssess(f);
+    return s ? avgAll(s.data) : 0;
+  });
+  const endVals = DB.fighters.map(f => {
+    const e = getEndAssess(f);
+    return e ? avgAll(e.data) : 0;
+  });
+  ctx._chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Начало сезона', data: startVals, backgroundColor: '#87CEEB' },
+        { label: 'Конец сезона', data: endVals, backgroundColor: '#4A90E2' }
+      ]
+    },
+    options: { scales: { y: { beginAtZero: true, max: MAX_SCORE } } }
+  });
+}

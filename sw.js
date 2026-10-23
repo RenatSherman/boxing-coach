@@ -4,20 +4,32 @@
    На проде (GitHub Pages) — кэширует всё для офлайн-работы.
    ============================================================ */
 
-const CACHE_NAME = 'boxcoach-v2';
+const CACHE_NAME = 'boxcoach-v3';
 
-// Файлы приложения (свои)
+// Файлы приложения (свои) — ВАЖНО: порядок должен совпадать с index.html
 const APP_FILES = [
   './',
   './index.html',
   './style.css',
+  './config.js',
+  './utils.js',
   './data.js',
-  './fighters.js',
+  './cloud.js',
+  './attendance-data.js',
+  './journal.js',
+  './nav.js',
+  './fighters-core.js',
+  './assessments.js',
+  './measurements.js',
   './calendar.js',
+  './fighter-detail.js',
   './attendance.js',
   './reports.js',
   './exercises.js',
   './pdf.js',
+  './dashboard.js',
+  './compare.js',
+  './settings.js',
   './app.js'
 ];
 
