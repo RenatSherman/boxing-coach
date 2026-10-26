@@ -1,5 +1,5 @@
 /* ============================================================
-   CALENDAR.JS — календарь бойца (месяц), календарь тренера (день+неделя)
+   CALENDAR.JS — календарь бойца (месяц), календарь тренера (день)
    ============================================================ */
 
 /* ================== КАЛЕНДАРЬ БОЙЦА (МЕСЯЦ) ================== */
@@ -122,18 +122,8 @@ const Calendar = (() => {
 
 setInterval(() => Calendar.notifyUpcoming(), 5 * 60 * 1000);
 
-/* ================== КАЛЕНДАРЬ ТРЕНЕРА (НОВАЯ ВЕРСИЯ) ==================
-   Особенности:
-   - Лента дней сверху — горизонтальный скролл, дни всегда видны.
-   - Часы слева — вертикальный скролл. Время не уезжает.
-   - Клик по часу → назначаем тренировку.
-   - Клик по событию → окно с деталями.
-   - Выбранный день хранится в ГЛОБАЛЬНОЙ переменной, чтобы
-     сохраняться между перерисовками дашборда.
-*/
+/* ================== КАЛЕНДАРЬ ТРЕНЕРА (СТИЛЬ IOS) ================== */
 
-/* Глобальное состояние календаря тренера — живёт вне функции,
-   чтобы клик по дню не сбрасывал его при перерисовке. */
 let __coachCalState = {
   weekStart: (() => {
     const n = new Date();
@@ -150,7 +140,8 @@ let __coachCalState = {
 
 const CoachCalendar = (() => {
   const START_HOUR = 6;
-  const END_HOUR = 22;
+  const END_HOUR = 23;
+  const TOTAL_HOURS = END_HOUR - START_HOUR + 1;
 
   function shiftWeek(delta) {
     __coachCalState.weekStart = new Date(
@@ -168,21 +159,6 @@ const CoachCalendar = (() => {
     __coachCalState.selectedDayIndex = day;
   }
 
-  function weekLabel() {
-    const start = __coachCalState.weekStart;
-    const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
-    const months = ['января','февраля','марта','апреля','мая','июня',
-                    'июля','августа','сентября','октября','ноября','декабря'];
-    const d1 = start.getDate();
-    const d2 = end.getDate();
-    const m1 = months[start.getMonth()];
-    const m2 = months[end.getMonth()];
-    if (start.getMonth() === end.getMonth()) {
-      return `${d1}–${d2} ${m2}`;
-    }
-    return `${d1} ${m1} – ${d2} ${m2}`;
-  }
-
   function getDays() {
     const start = __coachCalState.weekStart;
     return Array.from({length: 7}, (_,i) => {
@@ -191,139 +167,135 @@ const CoachCalendar = (() => {
     });
   }
 
-  /* Обработчики навигации — вызывают renderDashboard,
-     состояние сохраняется в глобальной переменной */
-  function goPrevWeek() {
-    shiftWeek(-1);
-    renderDashboard();
-  }
-  function goNextWeek() {
-    shiftWeek(1);
-    renderDashboard();
-  }
-  function goThisWeek() {
-    thisWeek();
-    renderDashboard();
-  }
-  function selectDay(i) {
-    __coachCalState.selectedDayIndex = i;
-    renderDashboard();
-  }
+  function goPrevWeek() { shiftWeek(-1); renderDashboard(); }
+  function goNextWeek() { shiftWeek(1); renderDashboard(); }
+  function goThisWeek() { thisWeek(); renderDashboard(); }
+  function selectDay(i) { __coachCalState.selectedDayIndex = i; renderDashboard(); }
 
   function render() {
     const days = getDays();
     const t = todayStr();
-    const dayNames = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
-    const monthsShort = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+    const dayNames = ['П','В','С','Ч','П','С','В'];
 
     // Лента дней
     const daysStripHtml = days.map((d, i) => {
       const isToday = d.ds === t;
       const isSelected = i === __coachCalState.selectedDayIndex;
       const dayNum = d.date.getDate();
-      const monthName = monthsShort[d.date.getMonth()];
+      
       let cnt = 0;
       DB.fighters.forEach(f => {
         cnt += (f.calendar[d.ds] || []).length;
       });
+      
+      const dotHtml = cnt ? `<div class="ios-cal-dot"></div>` : '';
+
       return `
-        <button class="day-chip ${isSelected ? 'selected' : ''} ${isToday ? 'is-today' : ''}"
-                onclick="CoachCalendar.selectDay(${i})">
-          <span class="day-chip-name">${dayNames[i]}</span>
-          <span class="day-chip-num">${dayNum}</span>
-          <span class="day-chip-month">${monthName}</span>
-          ${cnt ? `<span class="day-chip-badge">${cnt}</span>` : ''}
-        </button>
+        <div class="ios-cal-day ${isSelected ? 'selected' : ''} ${isToday ? 'is-today' : ''}"
+             onclick="CoachCalendar.selectDay(${i})">
+          <span class="ios-cal-day-name">${dayNames[i]}</span>
+          <span class="ios-cal-day-num">${dayNum}</span>
+          ${dotHtml}
+        </div>
       `;
     }).join('');
 
-    // Выбранный день
     const selectedDs = days[__coachCalState.selectedDayIndex].ds;
     const selectedDate = days[__coachCalState.selectedDayIndex].date;
 
-    // Строки по часам
+    // Сбор событий
+    const eventsByHour = {};
+    for (let h = START_HOUR; h <= END_HOUR; h++) eventsByHour[h] = [];
+
+    DB.fighters.forEach(f => {
+      (f.calendar[selectedDs] || []).forEach((s, idx) => {
+        if (eventsByHour[s.hour]) eventsByHour[s.hour].push({ f, s, idx });
+      });
+    });
+
+    // Сетка часов
     let hoursHtml = '';
     for (let h = START_HOUR; h <= END_HOUR; h++) {
-      const events = [];
-      DB.fighters.forEach(f => {
-        (f.calendar[selectedDs] || []).forEach((s, idx) => {
-          if (s.hour === h) events.push({ f, s, idx });
-        });
-      });
-
+      const events = eventsByHour[h];
       const aggregated = aggregateSlotEvents(events);
 
-      const isNow = (() => {
-        const now = new Date();
-        return dateStr(now) === selectedDs && now.getHours() === h;
-      })();
+      let eventsHtml = '';
+      if (aggregated.length > 0) {
+        eventsHtml = aggregated.map(agg => {
+          const modeClass = agg.mode === 'group' && agg.count > 1 ? 'group' : agg.events[0].s.mode;
+          const repeatIcon = agg.count > 1 ? '<span class="ios-cal-repeat">↻</span>' : '';
+          return `
+            <div class="ios-cal-event ${modeClass}"
+                 onclick="event.stopPropagation();openAggregatedTraining('${selectedDs}',${h})">
+              <div class="ios-cal-event-title">${agg.label}</div>
+              ${repeatIcon}
+            </div>
+          `;
+        }).join('');
+      }
 
       hoursHtml += `
-        <div class="hour-row ${isNow ? 'is-now' : ''}">
-          <div class="hour-label">${String(h).padStart(2,'0')}:00</div>
-          <div class="hour-cell"
-               onclick="openAssignTrainingModal(null,'${selectedDs}',${h})">
-            ${aggregated.length
-              ? aggregated.map(agg => {
-                  const tooltip = agg.events.map(ev => {
-                    const exName = ev.s.blockId ? exerciseName(ev.s.blockId) : 'без упражнения';
-                    return `${ev.f.name} — ${exName}`;
-                  }).join('\n');
-                  const modeClass = agg.mode === 'group' && agg.count > 1
-                    ? 'group'
-                    : agg.events[0].s.mode;
-                  return `
-                    <div class="hour-event ${modeClass}"
-                         title="${tooltip}"
-                         onclick="event.stopPropagation();openAggregatedTraining('${selectedDs}',${h})">
-                      <b>${agg.label}</b>
-                    </div>
-                  `;
-                }).join('')
-              : ''}
-            <div class="hour-add" title="Назначить тренировку">+</div>
+        <div class="ios-cal-row">
+          <div class="ios-cal-time">${String(h).padStart(2,'0')}:00</div>
+          <div class="ios-cal-cell" onclick="openAssignTrainingModal(null,'${selectedDs}',${h})">
+            ${eventsHtml}
           </div>
         </div>
       `;
     }
 
-    const selectedDateLabel = selectedDate.toLocaleDateString('ru-RU', {
-      weekday: 'long', day: 'numeric', month: 'long'
-    });
+    // Индикатор текущего времени
+    const now = new Date();
+    let nowLineHtml = '';
+    if (dateStr(now) === selectedDs) {
+      const currentHour = now.getHours();
+      const currentMinutes = now.getMinutes();
+      if (currentHour >= START_HOUR && currentHour <= END_HOUR) {
+        // Высота строки рассчитывается через CSS (flex: 1), поэтому индикатор позиционируется в процентах
+        const percentTop = ((currentHour - START_HOUR) + (currentMinutes / 60)) / TOTAL_HOURS * 100;
+        nowLineHtml = `
+          <div class="ios-cal-now-line" style="top: ${percentTop}%;">
+            <div class="ios-cal-now-time">${String(currentHour).padStart(2,'0')}:${String(currentMinutes).padStart(2,'0')}</div>
+          </div>
+        `;
+      }
+    }
 
     return `
-      <div class="coach-cal-header">
-        <div class="coach-cal-toolbar">
-          <button class="ghost" onclick="CoachCalendar.goPrevWeek()">‹</button>
-          <b class="coach-cal-week">${weekLabel()}</b>
-          <button class="ghost" onclick="CoachCalendar.goNextWeek()">›</button>
-          <button class="ghost" onclick="CoachCalendar.goThisWeek()">Текущая</button>
-          <button class="success" style="margin-left:auto" onclick="openAssignTrainingModal(null, '${selectedDs}', null)">+ Тренировка</button>
+      <div class="ios-calendar-wrapper">
+        <div class="ios-cal-header">
+          <div class="ios-cal-title">
+            <span style="color:#ff3b30; cursor:pointer;" onclick="CoachCalendar.goPrevWeek()">‹</span>
+            <span style="text-transform: capitalize;">${selectedDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}</span>
+            <span style="color:#ff3b30; cursor:pointer;" onclick="CoachCalendar.goNextWeek()">›</span>
+          </div>
+          <div class="ios-cal-header-actions">
+            <button class="ios-btn-icon" onclick="openAssignTrainingModal(null, '${selectedDs}', null)">+</button>
+            <button class="ios-btn-text" onclick="CoachCalendar.goThisWeek()">Сегодня</button>
+          </div>
         </div>
-        <div class="days-strip">
+
+        <div class="ios-cal-week-strip">
           ${daysStripHtml}
         </div>
-        <div class="selected-day-label">${selectedDateLabel}</div>
-        <div class="legend">
-          <span><i style="background:#FEF3C7;border-left:3px solid #F59E0B"></i>Самостоятельно</span>
-          <span><i style="background:#FCE7F3;border-left:3px solid #EC4899"></i>Индивидуально</span>
-          <span><i style="background:#DBEAFE;border-left:3px solid #3B82F6"></i>Группа</span>
+        
+        <div class="ios-cal-week-label">
+          ${selectedDate.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })}
         </div>
-      </div>
-      <div class="hours-list">
-        ${hoursHtml}
+
+        <div class="ios-cal-grid-wrapper">
+          <div class="ios-cal-grid">
+            ${hoursHtml}
+            ${nowLineHtml}
+          </div>
+        </div>
       </div>
     `;
   }
 
   return {
-    render,
-    shiftWeek,
-    thisWeek,
-    selectDay,
-    goPrevWeek,
-    goNextWeek,
-    goThisWeek
+    render, shiftWeek, thisWeek, selectDay,
+    goPrevWeek, goNextWeek, goThisWeek
   };
 })();
 

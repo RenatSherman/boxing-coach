@@ -1,7 +1,7 @@
 /* ============================================================
    NAV.JS — навигация, модальные окна, вход, роутер
    ============================================================ */
-const app = document.getElementById('app');
+let app;
 const state = { tab: 'dashboard', currentFighter: null, exTab: 'exercises' };
 
 /* ================== НАВИГАЦИЯ ================== */
@@ -11,18 +11,26 @@ function setActiveTab(tab) {
   });
 }
 
-document.querySelectorAll('#mainNav button').forEach(b => {
-  b.onclick = () => {
-    state.tab = b.dataset.tab;
-    state.currentFighter = null;
-    setActiveTab(state.tab);
-    render();
-    toggleMenu(false);
-  };
+document.addEventListener('DOMContentLoaded', () => {
+  app = document.getElementById('app');
+
+  document.querySelectorAll('#mainNav button').forEach(b => {
+    b.onclick = () => {
+      state.tab = b.dataset.tab;
+      state.currentFighter = null;
+      setActiveTab(state.tab);
+      render();
+      toggleMenu(false);
+    };
+  });
+  
+  const toggle = document.getElementById('menuToggle');
+  if (toggle) toggle.onclick = () => toggleMenu();
 });
-document.getElementById('menuToggle').onclick = () => toggleMenu();
+
 function toggleMenu(force) {
   const nav = document.getElementById('mainNav');
+  if (!nav) return;
   const open = force !== undefined ? force : !nav.classList.contains('open');
   nav.classList.toggle('open', open);
 }
@@ -92,20 +100,15 @@ window.LockScreen = LockScreen;
 
 /* ================== РОУТИНГ ================== */
 function render() {
+  if (!app) app = document.getElementById('app');
+  if (!app) return;
+  
   try {
     if (state.tab === 'dashboard') renderDashboard();
     else if (state.tab === 'fighters') renderFighters();
     else if (state.tab === 'attendance') {
       if (typeof Attendance === 'undefined') {
-        app.innerHTML = `
-          <h2>Отметка тренировки</h2>
-          <div class="card" style="border-left:4px solid #dc2626;background:#fef2f2;">
-            <b style="color:#991b1b;">Модуль attendance.js не загружен.</b>
-            <p style="color:#666;font-size:14px;margin:8px 0 0;">
-              Проверьте, что файл <code>attendance.js</code> существует и подключён в <code>index.html</code>
-              перед <code>app.js</code>. Затем обновите страницу (Ctrl+F5).
-            </p>
-          </div>`;
+        app.innerHTML = `<h2>Отметка тренировки</h2><div class="card">Модуль не загружен.</div>`;
       } else {
         Attendance.render();
       }
@@ -116,11 +119,7 @@ function render() {
     else if (state.tab === 'settings') renderSettings();
   } catch (e) {
     console.error('[render] Ошибка:', e);
-    app.innerHTML = `
-      <div class="card" style="border-left:4px solid #dc2626;background:#fef2f2;">
-        <h3 style="margin-top:0;color:#991b1b;">Ошибка в разделе «${state.tab}»</h3>
-        <p style="color:#666;">${e.message || 'Неизвестная ошибка'}</p>
-        <pre style="background:#fff;padding:10px;border-radius:6px;font-size:12px;overflow:auto;">${(e.stack || '').split('\n').slice(0,5).join('\n')}</pre>
-      </div>`;
+    app.innerHTML = `<div class="card" style="border-left:4px solid #dc2626;background:#fef2f2;padding:16px;">
+        <h3 style="margin-top:0;color:#991b1b;">Ошибка</h3><p>${e.message}</p></div>`;
   }
 }
