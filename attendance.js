@@ -1,7 +1,5 @@
 /* ============================================================
    ATTENDANCE.JS — раздел «Отметка тренировки»
-   Чек-лист посещений + экспорт + внеплановые бойцы
-   + умная подсказка при отправке без интернета
    ============================================================ */
 
 const Attendance = (() => {
@@ -42,31 +40,31 @@ const Attendance = (() => {
     });
 
     app.innerHTML = `
-      <h2>Отметка тренировки</h2>
+      <h2>Отметка</h2>
       <div class="att-toolbar">
-        <button onclick="Attendance.shiftDate(-1);render()">‹</button>
-        <b style="min-width: 260px; text-align: center; text-transform: capitalize;">${dateLabel}</b>
-        <button onclick="Attendance.shiftDate(1);render()">›</button>
-        <button class="ghost" onclick="Attendance.setToday();render()">Сегодня</button>
-        <label style="margin-left: 10px;">
-          <input type="date" value="${viewDate}" onchange="Attendance.setDate(this.value)">
-        </label>
-        ${sessions.length ? `
-          <button class="success" style="margin-left: auto;" onclick="Attendance.copyDay()">📋 Скопировать весь день</button>
-          <button onclick="Attendance.shareDay()">📤 Отправить день</button>
-        ` : ''}
+        <b style="text-transform: capitalize;">${dateLabel}</b>
+        <button class="ghost small" onclick="Attendance.shiftDate(-1);render()">‹ Вчера</button>
+        <button class="ghost small" onclick="Attendance.setToday();render()">Сегодня</button>
+        <button class="ghost small" onclick="Attendance.shiftDate(1);render()">Завтра ›</button>
+        <input type="date" value="${viewDate}" onchange="Attendance.setDate(this.value)">
       </div>
 
       ${!sessions.length
-        ? `<div class="card"><p style="color:#666;font-size:14px;margin:0;">
-             На эту дату тренировок нет. Назначьте их в календаре тренера или в календаре бойца.
+        ? `<div class="card"><p style="color:#666;font-size:14px;margin:0;text-align:center;padding:20px;">
+             На эту дату тренировок нет.
            </p></div>`
         : `
-          <div class="card" style="background:#f0fdf4;border-left:4px solid #22c55e;">
-            <b>Присутствуют: ${totalPresent} из ${totalFighters}</b>
-            <span style="color:#666;margin-left:10px;font-size:13px;">
-              (${sessions.length} тренировк${sessions.length===1?'а':'и'})
-            </span>
+          <div class="card" style="background:#f0fdf4;border-left:4px solid #22c55e; padding:12px; margin-bottom:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <b style="font-size:15px;">Присутствуют:</b>
+              <span style="font-size:16px;"><b>${totalPresent}</b> из ${totalFighters}</span>
+            </div>
+            ${sessions.length ? `
+              <div style="display:flex; gap:8px; margin-top:12px;">
+                <button class="success small" style="flex:1;" onclick="Attendance.copyDay()">📋 Копировать</button>
+                <button class="small" style="flex:1;" onclick="Attendance.shareDay()">📤 Отправить</button>
+              </div>
+            ` : ''}
           </div>
           <div class="att-list">
             ${sessions.map(s => renderSession(s)).join('')}
@@ -105,18 +103,17 @@ const Attendance = (() => {
       const checked = st === true ? 'checked' : '';
       const cls = st === true ? 'checked' : '';
       const guestClass = f.isGuest ? 'guest' : '';
-      const guestBadge = f.isGuest ? '<span class="att-guest-badge">➕ Внеплановый</span>' : '';
+      const guestBadge = f.isGuest ? '<span class="att-guest-badge">➕ Внепл.</span>' : '';
       const removeBtn = f.isGuest
-        ? `<button class="small danger" style="margin-left:6px;"
+        ? `<button class="small danger" style="margin-left:8px; padding:4px 8px;"
                    onclick="event.preventDefault();event.stopPropagation();Attendance.removeGuest('${f.id}',${session.hour})"
-                   title="Убрать внепланового">✕</button>`
+                   title="Убрать">✕</button>`
         : '';
       return `
         <label class="att-check-item ${cls} ${guestClass}">
           <input type="checkbox" ${checked}
                  onchange="Attendance.toggle('${f.id}', ${session.hour}, this.checked)">
           <span class="att-name">${f.name}${guestBadge}</span>
-          <span class="att-group">${groupShort(f.group)}</span>
           ${removeBtn}
         </label>
       `;
@@ -127,22 +124,25 @@ const Attendance = (() => {
         <div class="att-card-header">
           <div>
             <h3>${title}</h3>
-            <span class="att-time">${time} • ${exName}${guestsCount ? ` • внеплановых: ${guestsCount}` : ''}</span>
+            <span class="att-time">${time} • ${exName}${guestsCount ? ` • внепл.: ${guestsCount}` : ''}</span>
           </div>
-          <span class="att-badge">${allMarked ? '✅ Отмечено' : '⚠️ Не отмечено'}</span>
+          <span class="att-badge">${allMarked ? '✅' : '⚠️'}</span>
         </div>
+        
         <div class="att-summary">
-          Присутствуют: <b>${present}</b> из <b>${total}</b>
+          <span>Присутствуют:</span>
+          <span><b>${present}</b> из <b>${total}</b></span>
         </div>
+        
         <div class="att-checklist">
           ${checklistHtml}
         </div>
+        
         <div class="att-actions">
-          <button class="success small" onclick="Attendance.markAll('${session.key}', true)">✓ Отметить всех</button>
+          <button class="success small" onclick="Attendance.markAll('${session.key}', true)">✓ Всех</button>
           <button class="ghost small" onclick="Attendance.markAll('${session.key}', false)">✗ Никого</button>
-          <button class="small" onclick="Attendance.openAddGuest('${session.key}')">➕ Добавить бойца</button>
-          <button class="small" onclick="Attendance.copySession('${session.key}')">📋 Скопировать</button>
-          <button class="small" onclick="Attendance.shareSession('${session.key}')">📤 Отправить</button>
+          <button class="small" onclick="Attendance.openAddGuest('${session.key}')">➕ Добавить</button>
+          <button class="small" onclick="Attendance.copySession('${session.key}')">📋 Копировать</button>
         </div>
       </div>
     `;
@@ -191,13 +191,9 @@ const Attendance = (() => {
 
     Modal.open(`
       <div class="modal" onclick="event.stopPropagation()">
-        <h3>Добавить внепланового бойца</h3>
+        <h3>Добавить бойца</h3>
         <p style="font-size:13px;color:#666;margin:4px 0 10px;">
           Тренировка: <b>${hostTitle}</b>, ${hostTime}, ${formatDateRu(session.date)}
-        </p>
-        <p style="font-size:13px;color:#666;margin:0 0 10px;">
-          Выберите бойцов, которые пришли, но не были назначены на эту тренировку.
-          Они будут добавлены со значком «➕ Внеплановый».
         </p>
         <div class="guest-list">${groupsHtml}</div>
         <div class="modal-actions">
@@ -340,26 +336,18 @@ const Attendance = (() => {
   /* ================== ОТПРАВКА С УЧЁТОМ ОФЛАЙНА ================== */
 
   function shareText(text) {
-    // Если интернета нет — копируем в буфер и показываем подсказку
     if (!navigator.onLine) {
-      copyToClipboard(text, true); // silent — без отдельного тоста
+      copyToClipboard(text, true);
       setTimeout(() => {
-        alert(
-          '📴 Нет интернета.\n\n' +
-          'Текст списка скопирован в буфер обмена.\n\n' +
-          'Откройте мессенджер, вставьте текст и отправьте. ' +
-          'Сообщение уйдёт, как только появится связь.\n\n' +
-          '⚠️ Ваши отметки уже сохранены — они досылаются в облако автоматически.'
-        );
+        alert('📴 Нет интернета.\n\nТекст списка скопирован в буфер обмена.\n\nОткройте мессенджер, вставьте текст и отправьте.');
       }, 100);
       return;
     }
 
-    // Если интернет есть — работаем как обычно
     if (navigator.share) {
       navigator.share({ text })
         .then(() => toast('Отправлено', 'ok'))
-        .catch(() => { /* отмена */ });
+        .catch(() => {});
     } else {
       copyToClipboard(text);
       setTimeout(() => {

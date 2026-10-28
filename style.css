@@ -18,13 +18,13 @@ header { background: #111; color: #fff; padding: 10px 20px; display: flex; align
 header h1 { font-size: 18px; margin: 0; white-space: nowrap; }
 
 /* ===== НИЖНЕЕ МЕНЮ (iOS STYLE) ===== */
-.bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(17, 17, 17, 0.95); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); display: flex; overflow-x: auto; padding: 8px 10px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid #333; z-index: 100; gap: 6px; scrollbar-width: none; }
+.bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: #111; display: flex; overflow-x: auto; padding: 8px 10px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid #333; z-index: 1000; gap: 6px; scrollbar-width: none; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); }
 .bottom-nav::-webkit-scrollbar { display: none; }
 .bottom-nav button { background: transparent; color: #888; border: none; padding: 6px 12px; border-radius: 8px; font-size: 13px; white-space: nowrap; flex-shrink: 0; transition: all 0.2s; }
 .bottom-nav button.active { color: #fff; background: #333; font-weight: 600; }
 
 /* ===== Основное ===== */
-main { padding: 16px; padding-bottom: 80px; max-width: 1400px; margin: 0 auto; }
+main { padding: 16px; padding-bottom: 100px; max-width: 1400px; margin: 0 auto; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
 .card { background: #fff; padding: 16px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); margin-bottom: 12px; }
 .big { font-size: 28px; font-weight: 700; margin: 0; }
@@ -37,7 +37,7 @@ main { padding: 16px; padding-bottom: 80px; max-width: 1400px; margin: 0 auto; }
 table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; }
 th, td { padding: 10px 8px; border-bottom: 1px solid #eee; text-align: left; font-size: 14px; }
 th { background: #fafafa; font-weight: 600; }
-input, select, textarea { padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; max-width: 100%; font-family: inherit; width: 100%; }
+input[type="text"], input[type="number"], input[type="date"], input[type="email"], input[type="password"], select, textarea { padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; max-width: 100%; font-family: inherit; width: 100%; }
 button { padding: 12px 16px; border-radius: 8px; border: 0; cursor: pointer; background: #111; color: #fff; font-size: 15px; font-weight: 500; }
 button:active { opacity: 0.7; }
 button.danger { background: #e63946; }
@@ -58,7 +58,7 @@ button.ghost { background: #eee; color: #111; }
 .slot.group { background: #DBEAFE; border-color: #3B82F6; color: #1E3A8A; }
 
 /* ===== НОВЫЙ КАЛЕНДАРЬ ТРЕНЕРА (iOS СТИЛЬ) ===== */
-.ios-calendar-wrapper { background: #000; color: #fff; border-radius: 12px; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 100%; margin: 0 auto; display: flex; flex-direction: column; height: calc(100vh - 180px); min-height: 450px; }
+.ios-calendar-wrapper { background: #000; color: #fff; border-radius: 12px; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 100%; margin: 0 auto; display: flex; flex-direction: column; height: calc(100vh - 190px); min-height: 450px; }
 .ios-cal-header { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #222; flex-shrink: 0; }
 .ios-cal-title { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
 .ios-cal-header-actions { display: flex; gap: 6px; align-items: center; }
@@ -78,7 +78,7 @@ button.ghost { background: #eee; color: #111; }
 
 .ios-cal-week-label { padding: 8px 12px; font-size: 13px; font-weight: 600; color: #888; text-transform: capitalize; border-bottom: 1px solid #222; flex-shrink: 0; }
 
-.ios-cal-grid-wrapper { flex: 1; overflow: hidden; position: relative; background: #000; }
+.ios-cal-grid-wrapper { flex: 1; overflow: hidden; position: relative; background: #000; touch-action: pan-y; }
 .ios-cal-grid { display: flex; flex-direction: column; height: 100%; position: relative; }
 .ios-cal-row { flex: 1; display: flex; border-bottom: 1px solid #1a1a1a; min-height: 0; }
 .ios-cal-time { width: 45px; flex-shrink: 0; text-align: right; padding-right: 6px; font-size: 10px; color: #666; transform: translateY(-5px); display: flex; justify-content: flex-end; }
@@ -113,9 +113,48 @@ details.dash-accordion .dash-accordion-content { padding: 0 16px 16px 16px; bord
 .modal-actions .primary { background: #e63946; }
 .modal-actions .secondary { background: #eee; color: #111; }
 
-/* ===== Прочее ===== */
-.toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(80px); background: #111; color: #fff; padding: 12px 20px; border-radius: 8px; transition: transform .25s; z-index: 1000; max-width: 90vw; text-align: center; font-size: 14px; }
-.toast.show { transform: translateX(-50%) translateY(0); }
+/* ===== ОТМЕТКА ТРЕНИРОВКИ (АДАПТИВ) ===== */
+.att-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 10px 0 16px; justify-content: center; }
+.att-toolbar button { flex: 1; min-width: 120px; padding: 10px; font-size: 14px; }
+.att-toolbar input[type="date"] { width: auto; flex: 1; max-width: 150px; padding: 8px; }
+.att-toolbar b { width: 100%; text-align: center; font-size: 16px; margin-bottom: 8px; }
+
+.att-list { display: flex; flex-direction: column; gap: 12px; }
+.att-card { background: #fff; border-radius: 12px; padding: 16px; border-left: 4px solid #3B82F6; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+.att-card.done { border-left-color: #22c55e; }
+.att-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+.att-card-header h3 { margin: 0; font-size: 18px; }
+.att-card-header .att-time { font-size: 13px; color: #666; font-weight: 500; display: block; margin-top: 4px; }
+.att-card-header .att-badge { display: inline-block; padding: 4px 10px; border-radius: 10px; font-size: 12px; font-weight: 600; background: #e5e7eb; color: #374151; white-space: nowrap; }
+.att-card.done .att-badge { background: #dcfce7; color: #166534; }
+
+.att-summary { font-size: 14px; color: #666; margin-bottom: 12px; background: #f9fafb; padding: 8px 12px; border-radius: 8px; display: flex; justify-content: space-between; }
+.att-summary b { color: #111; font-size: 16px; }
+
+.att-checklist { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.att-check-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 8px; background: #fafafa; border: 1px solid #eee; cursor: pointer; user-select: none; }
+.att-check-item:active { background: #f0f0f0; }
+.att-check-item input[type="checkbox"] { width: 24px; height: 24px; accent-color: #22c55e; cursor: pointer; margin: 0; flex-shrink: 0; border-radius: 6px; }
+.att-check-item .att-name { flex: 1; font-size: 15px; font-weight: 500; line-height: 1.3; }
+.att-check-item .att-group { display: none; /* Скрываем группу на телефоне, чтобы не мешала */ }
+.att-check-item.checked { background: #f0fdf4; border-color: #86efac; }
+.att-check-item.checked .att-name { color: #166534; }
+
+.att-check-item.guest { background: #fffbeb; border-color: #fcd34d; }
+.att-check-item.guest.checked { background: #fef3c7; border-color: #f59e0b; }
+.att-guest-badge { display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 700; color: #92400e; background: #fcd34d; padding: 2px 6px; border-radius: 6px; text-transform: uppercase; }
+
+.att-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.att-actions button { flex: 1; min-width: 100px; font-size: 13px; padding: 10px; }
+
+.att-history-item { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; font-size: 14px; border-bottom: 1px solid #f0f0f0; }
+.att-history-item:last-child { border-bottom: 0; }
+.att-history-item .att-h-date { flex-shrink: 0; color: #666; }
+.att-history-item .att-h-info b { color: #111; }
+
+/* ===== Уведомления ===== */
+.toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #111; color: #fff; padding: 12px 20px; border-radius: 8px; z-index: 9999; max-width: 90vw; text-align: center; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity 0.25s; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+.toast.show { opacity: 1; pointer-events: auto; }
 .toast.ok { background: #22c55e; }
 .toast.error { background: #e63946; }
 .sync-badge { font-size: 18px; color: #888; }
@@ -125,7 +164,6 @@ details.dash-accordion .dash-accordion-content { padding: 0 16px 16px 16px; bord
 .sync-badge.error { color: #e63946; }
 @keyframes pulse { 50% { opacity: .4; } }
 
-/* Скрываем лишнее на мобильных (на всякий случай) */
 @media (max-width: 720px) {
   h2 { font-size: 20px; margin-top: 10px; }
   .card { padding: 12px; }

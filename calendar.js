@@ -172,12 +172,31 @@ const CoachCalendar = (() => {
   function goThisWeek() { thisWeek(); renderDashboard(); }
   function selectDay(i) { __coachCalState.selectedDayIndex = i; renderDashboard(); }
 
+  function nextDay() {
+    if (__coachCalState.selectedDayIndex < 6) {
+      __coachCalState.selectedDayIndex++;
+    } else {
+      shiftWeek(1);
+      __coachCalState.selectedDayIndex = 0;
+    }
+    renderDashboard();
+  }
+
+  function prevDay() {
+    if (__coachCalState.selectedDayIndex > 0) {
+      __coachCalState.selectedDayIndex--;
+    } else {
+      shiftWeek(-1);
+      __coachCalState.selectedDayIndex = 6;
+    }
+    renderDashboard();
+  }
+
   function render() {
     const days = getDays();
     const t = todayStr();
     const dayNames = ['П','В','С','Ч','П','С','В'];
 
-    // Лента дней
     const daysStripHtml = days.map((d, i) => {
       const isToday = d.ds === t;
       const isSelected = i === __coachCalState.selectedDayIndex;
@@ -203,7 +222,6 @@ const CoachCalendar = (() => {
     const selectedDs = days[__coachCalState.selectedDayIndex].ds;
     const selectedDate = days[__coachCalState.selectedDayIndex].date;
 
-    // Сбор событий
     const eventsByHour = {};
     for (let h = START_HOUR; h <= END_HOUR; h++) eventsByHour[h] = [];
 
@@ -213,7 +231,6 @@ const CoachCalendar = (() => {
       });
     });
 
-    // Сетка часов
     let hoursHtml = '';
     for (let h = START_HOUR; h <= END_HOUR; h++) {
       const events = eventsByHour[h];
@@ -244,14 +261,12 @@ const CoachCalendar = (() => {
       `;
     }
 
-    // Индикатор текущего времени
     const now = new Date();
     let nowLineHtml = '';
     if (dateStr(now) === selectedDs) {
       const currentHour = now.getHours();
       const currentMinutes = now.getMinutes();
       if (currentHour >= START_HOUR && currentHour <= END_HOUR) {
-        // Высота строки рассчитывается через CSS (flex: 1), поэтому индикатор позиционируется в процентах
         const percentTop = ((currentHour - START_HOUR) + (currentMinutes / 60)) / TOTAL_HOURS * 100;
         nowLineHtml = `
           <div class="ios-cal-now-line" style="top: ${percentTop}%;">
@@ -283,7 +298,7 @@ const CoachCalendar = (() => {
           ${selectedDate.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })}
         </div>
 
-        <div class="ios-cal-grid-wrapper">
+        <div class="ios-cal-grid-wrapper" id="iosSwipeArea">
           <div class="ios-cal-grid">
             ${hoursHtml}
             ${nowLineHtml}
@@ -295,7 +310,8 @@ const CoachCalendar = (() => {
 
   return {
     render, shiftWeek, thisWeek, selectDay,
-    goPrevWeek, goNextWeek, goThisWeek
+    goPrevWeek, goNextWeek, goThisWeek,
+    nextDay, prevDay
   };
 })();
 

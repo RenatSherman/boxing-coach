@@ -69,12 +69,42 @@ function renderDashboard() {
     </details>
   `;
   
-  // Отрисовка графика, если аккордеон открыт
   setTimeout(() => {
     if (document.getElementById('dashChart')) drawDashChart();
+    initSwipe(); // Включаем свайпы
   }, 100);
 
   if (DB.settings.notifications) Calendar.requestPerm();
+}
+
+function initSwipe() {
+  const wrapper = document.getElementById('iosSwipeArea');
+  if (!wrapper) return;
+
+  let startX = 0;
+  let startY = 0;
+
+  wrapper.addEventListener('touchstart', e => {
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+  }, { passive: true });
+
+  wrapper.addEventListener('touchend', e => {
+    const endX = e.changedTouches[0].clientX;
+    const endY = e.changedTouches[0].clientY;
+
+    const diffX = endX - startX;
+    const diffY = endY - startY;
+
+    // Если свайп больше по горизонтали, чем по вертикали (чтобы не мешать скроллу)
+    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
+      if (diffX > 0) {
+        CoachCalendar.prevDay(); // Свайп вправо — прошлый день
+      } else {
+        CoachCalendar.nextDay(); // Свайп влево — следующий день
+      }
+    }
+  }, { passive: true });
 }
 
 function renderRecentTrainingsContent(recent) {
