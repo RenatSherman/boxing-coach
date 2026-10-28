@@ -20,12 +20,12 @@ document.addEventListener('DOMContentLoaded', () => {
       state.currentFighter = null;
       setActiveTab(state.tab);
       
-      // Принудительно сбрасываем дату на сегодня при переходе в Отметку
+      // Если переходим в Отметку, сначала сбрасываем дату, потом рендерим
       if (state.tab === 'attendance' && window.Attendance) {
-        Attendance.setToday(); 
-      } else {
-        render();
+        Attendance.setToday(); // Это изменит viewDate на todayStr() без рендера
       }
+      
+      render(); // Рендерим вкладку
     };
   });
 });
