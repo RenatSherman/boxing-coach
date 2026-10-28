@@ -19,7 +19,13 @@ document.addEventListener('DOMContentLoaded', () => {
       state.tab = b.dataset.tab;
       state.currentFighter = null;
       setActiveTab(state.tab);
-      render(); // Просто вызываем render, а модули сами разберутся
+      
+      // Принудительно сбрасываем дату на сегодня при переходе в Отметку
+      if (state.tab === 'attendance' && window.Attendance) {
+        Attendance.setToday(); 
+      } else {
+        render();
+      }
     };
   });
 });

@@ -3,7 +3,7 @@
    ============================================================ */
 
 const Attendance = (() => {
-  // Принудительно ставим сегодняшнюю дату при каждом вызове
+  // Жестко ставим сегодняшнюю дату при загрузке
   let viewDate = todayStr();
 
   function shiftDate(delta) {
@@ -23,7 +23,7 @@ const Attendance = (() => {
   }
 
   function render() {
-    // Жестко ставим сегодняшнюю дату, если она пустая или старая
+    // Принудительная проверка: если дата пустая, ставим сегодня
     if (!viewDate || viewDate === 'undefined') viewDate = todayStr();
 
     const sessions = getTrainingSessions(viewDate);
@@ -75,14 +75,13 @@ const Attendance = (() => {
     const allMarked = session.fighters.every(f => f.status !== null);
     const title = session.mode === 'group' ? groupName(session.group) : (session.fighters[0]?.name || 'Индивидуально');
 
-    // Дополнительная кнопка для индивидуальных тренировок
     const isPersonal = session.mode === 'personal';
     const doneBtn = isPersonal && !allMarked
       ? `<button class="success small" style="width:100%; margin-bottom:8px;" onclick="Attendance.markAll('${session.key}', 'present')">✓ Проведена (Отметить всех)</button>`
       : '';
       
     const cancelBtn = isPersonal && !allMarked
-      ? `<button class="ghost small" style="width:100%;" onclick="Attendance.markAll('${session.key}', 'cancelled')">🚫 Не проведена (указать причину)</button>`
+      ? `<button class="ghost small" style="width:100%; margin-bottom:8px;" onclick="Attendance.markAll('${session.key}', 'cancelled')">🚫 Не проведена (указать причину)</button>`
       : '';
 
     return `

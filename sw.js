@@ -1,7 +1,7 @@
 /* ============================================================
    SW.JS — Service Worker
    ============================================================ */
-const CACHE_NAME = 'boxcoach-v24';
+const CACHE_NAME = 'boxcoach-v25';
 
 const APP_FILES = [
   './', './index.html', './style.css', './config.js', './utils.js', './data.js', './cloud.js',
@@ -13,7 +13,6 @@ const APP_FILES = [
 const CDN_FILES = [
   'https://cdn.jsdelivr.net/npm/chart.js',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
-  'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
 ];
