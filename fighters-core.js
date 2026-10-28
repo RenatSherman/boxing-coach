@@ -126,7 +126,6 @@ window.openAssignTrainingModal = (presetFighterId, presetDate, presetHour) => {
     updateFightersDropdownText();
     document.addEventListener('click', outsideDropdownClick, true);
     
-    // Если передали конкретного бойца, автоматически раскрываем список
     if (presetFighterId) {
       const btn = document.getElementById('tr_dropdown_btn');
       if (btn) btn.classList.add('open');
@@ -145,11 +144,9 @@ window.toggleGroupSelect = (groupKey, e) => {
     return f && f.group === groupKey;
   });
 
-  // Если все уже выбраны — снимаем. Если нет — ставим всем.
   const allChecked = groupFighters.every(cb => cb.checked);
   groupFighters.forEach(cb => cb.checked = !allChecked);
   
-  // Визуально подсвечиваем кнопку
   const btn = document.querySelector(`.group-pick-btn[data-group="${groupKey}"]`);
   if (btn) {
     if (!allChecked) {

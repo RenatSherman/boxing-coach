@@ -1,26 +1,19 @@
 /* ============================================================
    UTILS.JS — утилиты и хелперы
-   ============================================================
-   Чистые функции без побочных эффектов:
-   - работа с датами
-   - группы бойцов (хелперы)
-   - упражнения и замеры (поиск)
-   - оценки (сортировка, начало/конец сезона)
-   - уведомления (toast)
-   - журнал забытых бойцов, название тренировки, агрегация
-
-   НЕ входит: рекомендации и журнал тренировок — они в journal.js.
-   НЕ входит: посещаемость — она в attendance-data.js.
-
-   Подключается ПОСЛЕ config.js и ПЕРЕД data.js
-   (data.js использует emptyAssess при загрузке).
    ============================================================ */
 
 /* ================== ID ================== */
 function uid() { return Math.random().toString(36).slice(2, 10); }
 
 /* ================== ДАТЫ ================== */
-function todayStr() { return new Date().toISOString().slice(0,10); }
+// Берем ЛОКАЛЬНУЮ дату телефона, чтобы не зависеть от часового пояса
+function todayStr() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 function dateStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -89,10 +82,7 @@ function groupIsKids(key) {
   return g ? !!g.isKids : false;
 }
 
-/* ================== ПУСТАЯ ОЦЕНКА ==================
-   Защищена на случай вызова ДО инициализации DB
-   (например, во время loadLocal при первом запуске).
-*/
+/* ================== ПУСТАЯ ОЦЕНКА ================== */
 function emptyAssess() {
   const obj = {};
   const dirs = (typeof DB !== 'undefined' && DB && Array.isArray(DB.directions))
@@ -248,4 +238,109 @@ function aggregateSlotEvents(events) {
   });
 
   return result;
+}
+
+/* ================== РЕКОМЕНДАЦИИ И СЛАБЫЕ СТОРОНЫ ================== */
+
+const CRITERION_TO_EXERCISES = {
+  straight:    ['джеб', 'прям'],
+  side:        ['хук', 'боков'],
+  uppercut:    ['снизу', 'апперкот'],
+  strength:    ['сил', 'отжим', 'подтяг', 'пресс', 'штанг', 'гир'],
+  speed:       ['скорост', 'быстр', 'рывок'],
+  coordination:['координ', 'челнок', 'реакц'],
+  endurance:   ['выносл', 'бег', 'скакал', 'круг'],
+  flexibility: ['гибк', 'растяж'],
+  longRange:   ['дистанц', 'джеб', 'прям'],
+  closeRange:  ['ближн', 'хук', 'снизу'],
+  footwork:    ['передвиж', 'челнок', 'ног', 'шаг'],
+  stability:   ['устойчив', 'стойк', 'баланс'],
+  stress:      ['стресс', 'спарринг', 'бой'],
+  defeat:      ['поражен', 'реакц']
+};
+
+function getRecommendationsForCriterion(critKey) {
+  const keywords = CRITERION_TO_EXERCISES[critKey] || [];
+  if (!keywords.length) return [];
+  const items = allExerciseItems();
+  const found = items.filter(item => {
+    const lower = item.name.toLowerCase();
+    return keywords.some(kw => lower.includes(kw));
+  });
+  return found.slice(0, 5);
+}
+
+function getWeakPoints(f, threshold = 6) {
+  const list = sortAssessments(f);
+  if (!list.length) return [];
+
+  let lastFilled = null;
+  for (let i = list.length - 1; i >= 0; i--) {
+    let hasAny = false;
+    DB.directions.forEach(d => {
+      Object.values(list[i].data[d.key] || {}).forEach(v => { if (+v > 0) hasAny = true; });
+    });
+    if (hasAny) { lastFilled = list[i]; break; }
+  }
+  if (!lastFilled) return [];
+
+  const weak = [];
+  DB.directions.forEach(d => {
+    d.criteria.forEach(c => {
+      const score = +(lastFilled.data[d.key]?.[c.key] || 0);
+      if (score > 0 && score < threshold) {
+        weak.push({
+          dirKey: d.key,
+          dirName: d.name,
+          critKey: c.key,
+          critName: c.name,
+          score,
+          assessment: lastFilled,
+          recommendations: getRecommendationsForCriterion(c.key)
+        });
+      }
+    });
+  });
+
+  weak.sort((a, b) => a.score - b.score);
+  return weak.slice(0, 5);
+}
+
+/* ================== ЖУРНАЛ ТРЕНИРОВОК ================== */
+function getRecentTrainings(limit = 30) {
+  const list = [];
+  DB.fighters.forEach(f => {
+    Object.entries(f.calendar || {}).forEach(([ds, slots]) => {
+      slots.forEach((s, idx) => {
+        list.push({
+          date: ds,
+          hour: s.hour,
+          blockId: s.blockId,
+          mode: s.mode,
+          comment: s.comment || '',
+          fighter: f,
+          idx
+        });
+      });
+    });
+  });
+  list.sort((a, b) => {
+    const ka = a.date + String(a.hour).padStart(2, '0');
+    const kb = b.date + String(b.hour).padStart(2, '0');
+    return kb.localeCompare(ka);
+  });
+  return list.slice(0, limit);
+}
+
+function getLastTrainingDays(f) {
+  let lastTs = 0;
+  Object.keys(f.calendar || {}).forEach(ds => {
+    const slots = f.calendar[ds] || [];
+    if (slots.length) {
+      const t = new Date(ds + 'T00:00:00').getTime();
+      if (t > lastTs) lastTs = t;
+    }
+  });
+  if (!lastTs) return null;
+  return Math.floor((Date.now() - lastTs) / 86400000);
 }

@@ -20,7 +20,6 @@ document.addEventListener('DOMContentLoaded', () => {
       state.currentFighter = null;
       setActiveTab(state.tab);
       
-      // Если переходим в Отметку, сначала сбрасываем дату, потом рендерим
       if (state.tab === 'attendance' && window.Attendance) {
         Attendance.setToday(); 
       }
