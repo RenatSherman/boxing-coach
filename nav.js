@@ -20,9 +20,9 @@ document.addEventListener('DOMContentLoaded', () => {
       state.currentFighter = null;
       setActiveTab(state.tab);
       
-      // Если переходим в Отметку, сбрасываем дату на сегодня
-      if (state.tab === 'attendance' && window.Attendance) {
-        Attendance.setToday(); 
+      // Если переходим в Отметку, ПРИНУДИТЕЛЬНО ставим сегодняшнюю дату
+      if (state.tab === 'attendance' && typeof Attendance !== 'undefined') {
+        Attendance.setToday(); // Эта функция сама вызовет render()
       } else {
         render();
       }
