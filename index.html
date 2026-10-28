@@ -9,6 +9,7 @@
 <title>Boxing Coach</title>
 <link rel="manifest" href='data:application/manifest+json,{"name":"Boxing Coach","short_name":"BoxCoach","start_url":"./","display":"standalone","background_color":"%23111111","theme_color":"%23111111"}'>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="calendar-style.css"> <!-- НОВЫЙ ФАЙЛ -->
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -53,7 +54,6 @@
 
   <main id="app"></main>
   
-  <!-- Меню навигации (на телефоне внизу, на ПК наверху) -->
   <nav id="mainNav" class="main-nav">
     <button data-tab="dashboard" class="active">Дашборд</button>
     <button data-tab="fighters">Бойцы</button>
@@ -69,7 +69,6 @@
 
 <div id="modalRoot"></div>
 
-<!-- ========== ФУНДАМЕНТ (порядок важен!) ========== -->
 <script src="config.js"></script>
 <script src="utils.js"></script>
 <script src="data.js"></script>
@@ -77,10 +76,8 @@
 <script src="attendance-data.js"></script>
 <script src="journal.js"></script>
 
-<!-- ========== НАВИГАЦИЯ И МОДАЛКИ ========== -->
 <script src="nav.js"></script>
 
-<!-- ========== ФУНКЦИОНАЛ ========== -->
 <script src="fighters-core.js"></script>
 <script src="assessments.js"></script>
 <script src="measurements.js"></script>
@@ -91,12 +88,10 @@
 <script src="exercises.js"></script>
 <script src="pdf.js"></script>
 
-<!-- ========== ЭКРАНЫ (UI) ========== -->
 <script src="dashboard.js"></script>
 <script src="compare.js"></script>
 <script src="settings.js"></script>
 
-<!-- ========== СТАРТ ========== -->
 <script src="app.js"></script>
 </body>
 </html>
