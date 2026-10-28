@@ -1,26 +1,12 @@
 /* ============================================================
    ATTENDANCE-DATA.JS — данные для посещаемости
-   ============================================================
-   Зависимости: config.js, utils.js (groupName, exerciseName,
-   modeLabel, formatDateRu), data.js (DB), cloud.js (saveData).
-
-   Подключается ПОСЛЕ cloud.js.
-
-   Что внутри:
-   - getTrainingsForDate — плоский список тренировок на дату
-   - getTrainingSessions — сгруппированные сессии (для чек-листа)
-   - isAttended — статус посещения бойца (true/false/null)
-   - setAttendance — записать/обновить статус
-   - getAttendanceStats / getAttendanceStatsMonth — статистика
-   - formatSessionText / formatDayText — текст для отправки
-   - addGuestToTraining / removeGuestFromTraining — внеплановые
-   - getFightersNotInSession — кто может быть добавлен
    ============================================================ */
 
 function getTrainingsForDate(ds) {
   const trainings = [];
   DB.fighters.forEach(f => {
     (f.calendar[ds] || []).forEach((s, idx) => {
+      const att = isAttended(f, ds, s.hour);
       trainings.push({
         fighterId: f.id,
         fighterName: f.name,
@@ -31,6 +17,8 @@ function getTrainingsForDate(ds) {
         mode: s.mode,
         comment: s.comment || '',
         isGuest: !!s.guest,
+        status: att.status,
+        reason: att.reason,
         idx
       });
     });
@@ -49,9 +37,7 @@ function getTrainingSessions(ds) {
   trainings.forEach(t => {
     let key;
     if (t.mode === 'group') {
-      key = t.isGuest
-        ? `${t.hour}-guest-${t.fighterId}`
-        : `${t.hour}-group-${t.group}`;
+      key = t.isGuest ? `${t.hour}-guest-${t.fighterId}` : `${t.hour}-group-${t.group}`;
     } else {
       key = `${t.hour}-${t.mode}-${t.fighterId}`;
     }
@@ -73,7 +59,9 @@ function getTrainingSessions(ds) {
       name: t.fighterName,
       group: t.group,
       idx: t.idx,
-      isGuest: t.isGuest
+      isGuest: t.isGuest,
+      status: t.status,
+      reason: t.reason
     });
   });
 
@@ -84,19 +72,26 @@ function getTrainingSessions(ds) {
 }
 
 function isAttended(fighter, ds, hour) {
-  if (!fighter.attendance) return null;
+  if (!fighter.attendance) return { status: null, reason: '' };
   const rec = fighter.attendance.find(a => a.date === ds && a.hour === hour);
-  if (!rec) return null;
-  return rec.present;
+  if (!rec) return { status: null, reason: '' };
+  
+  // Поддержка старого формата (когда был только true/false)
+  if (typeof rec.present === 'boolean') {
+    return { status: rec.present ? 'present' : 'absent', reason: '' };
+  }
+  return { status: rec.status, reason: rec.reason || '' };
 }
 
-function setAttendance(fighterId, ds, hour, blockId, mode, present) {
+function setAttendance(fighterId, ds, hour, blockId, mode, status, reason = '') {
   const f = DB.fighters.find(x => x.id === fighterId);
   if (!f) return;
   f.attendance = f.attendance || [];
   const existing = f.attendance.find(a => a.date === ds && a.hour === hour);
   if (existing) {
-    existing.present = present;
+    existing.status = status;
+    existing.reason = reason;
+    delete existing.present; // Удаляем старый формат
     existing.blockId = blockId || existing.blockId;
     existing.mode = mode || existing.mode;
   } else {
@@ -105,7 +100,8 @@ function setAttendance(fighterId, ds, hour, blockId, mode, present) {
       hour,
       blockId: blockId || '',
       mode: mode || '',
-      present
+      status,
+      reason
     });
   }
   saveData(DB);
@@ -113,11 +109,22 @@ function setAttendance(fighterId, ds, hour, blockId, mode, present) {
 
 function getAttendanceStats(fighter) {
   const list = fighter.attendance || [];
-  const total = list.length;
-  const present = list.filter(a => a.present).length;
-  const absent = total - present;
+  let present = 0, absent = 0, cancelled = 0;
+  
+  list.forEach(a => {
+    // Если старый формат
+    if (typeof a.present === 'boolean') {
+      if (a.present) present++; else absent++;
+    } else {
+      if (a.status === 'present') present++;
+      else if (a.status === 'absent') absent++;
+      else if (a.status === 'cancelled') cancelled++;
+    }
+  });
+  
+  const total = present + absent;
   const percent = total ? Math.round(present / total * 100) : 0;
-  return { total, present, absent, percent };
+  return { total, present, absent, cancelled, percent };
 }
 
 function getAttendanceStatsMonth(fighter, year, month) {
@@ -125,43 +132,45 @@ function getAttendanceStatsMonth(fighter, year, month) {
     const d = new Date(a.date);
     return d.getFullYear() === year && d.getMonth() === month;
   });
-  const total = list.length;
-  const present = list.filter(a => a.present).length;
-  const absent = total - present;
+  
+  let present = 0, absent = 0, cancelled = 0;
+  list.forEach(a => {
+    if (typeof a.present === 'boolean') {
+      if (a.present) present++; else absent++;
+    } else {
+      if (a.status === 'present') present++;
+      else if (a.status === 'absent') absent++;
+      else if (a.status === 'cancelled') cancelled++;
+    }
+  });
+  
+  const total = present + absent;
   const percent = total ? Math.round(present / total * 100) : 0;
-  return { total, present, absent, percent };
+  return { total, present, absent, cancelled, percent };
 }
 
 function formatSessionText(session) {
   const date = formatDateRu(session.date);
   const time = String(session.hour).padStart(2, '0') + ':00';
-  const modeLabelStr = modeLabel(session.mode);
-  const groupTitle = session.mode === 'group'
-    ? groupName(session.group)
-    : (session.fighters[0] ? session.fighters[0].name : '');
+  const groupTitle = session.mode === 'group' ? groupName(session.group) : (session.fighters[0] ? session.fighters[0].name : '');
 
   const present = [];
   const absent = [];
+  const cancelled = [];
+  const unknown = [];
+
   session.fighters.forEach(f => {
-    const fighter = DB.fighters.find(x => x.id === f.id);
-    if (!fighter) return;
-    const st = isAttended(fighter, session.date, session.hour);
     const guestMark = f.isGuest ? ' [+]' : '';
-    if (st === true) present.push(f.name + guestMark);
-    else if (st === false) absent.push(f.name + guestMark);
-    else absent.push(f.name + guestMark + ' (?)');
+    if (f.status === 'present') present.push(f.name + guestMark);
+    else if (f.status === 'absent') absent.push(f.name + guestMark);
+    else if (f.status === 'cancelled') cancelled.push(f.name + guestMark);
+    else unknown.push(f.name + guestMark + ' (?)');
   });
 
   const lines = [];
   lines.push(`Тренировка ${date}, ${time}`);
-  if (session.mode === 'group') {
-    lines.push(`Группа: ${groupName(session.group)}`);
-  } else {
-    lines.push(`Формат: ${modeLabelStr}`);
-  }
-  if (session.blockId) {
-    lines.push(`Упражнение: ${exerciseName(session.blockId)}`);
-  }
+  if (session.mode === 'group') lines.push(`Группа: ${groupName(session.group)}`);
+  if (session.blockId) lines.push(`Упражнение: ${exerciseName(session.blockId)}`);
   lines.push('');
 
   if (present.length) {
@@ -169,31 +178,32 @@ function formatSessionText(session) {
     present.forEach((n, i) => lines.push(`${i+1}. ${n}`));
     lines.push('');
   }
-  if (absent.length) {
-    lines.push(`Отсутствовали (${absent.length}):`);
-    absent.forEach((n, i) => lines.push(`${i+1}. ${n}`));
+  if (absent.length || unknown.length) {
+    const allAbs = [...absent, ...unknown];
+    lines.push(`Отсутствовали (${allAbs.length}):`);
+    allAbs.forEach((n, i) => lines.push(`${i+1}. ${n}`));
+    lines.push('');
+  }
+  if (cancelled.length) {
+    lines.push(`Отменено (${cancelled.length}):`);
+    cancelled.forEach((n, i) => lines.push(`${i+1}. ${n}`));
+    lines.push('');
   }
 
-  lines.push('');
   lines.push(`Тренер: ${DB.settings.coachName || '—'}`);
-  lines.push('(+) — внеплановый боец');
-
   return lines.join('\n');
 }
 
 function formatDayText(ds) {
   const sessions = getTrainingSessions(ds);
   if (!sessions.length) return 'На эту дату тренировок нет.';
-  const parts = sessions.map(s => formatSessionText(s));
-  return parts.join('\n\n────────────\n\n');
+  return sessions.map(s => formatSessionText(s)).join('\n\n────────────\n\n');
 }
 
 function addGuestToTraining(fighterId, ds, hour, hostGroupKey, hostBlockId, hostMode) {
   const f = DB.fighters.find(x => x.id === fighterId);
   if (!f) return false;
-
   f.calendar[ds] = f.calendar[ds] || [];
-
   const already = f.calendar[ds].find(s => s.hour === hour);
   if (already) return false;
 
@@ -201,14 +211,9 @@ function addGuestToTraining(fighterId, ds, hour, hostGroupKey, hostBlockId, host
   const comment = `Внеплановый: пришёл на ${hostGroupName}`;
 
   f.calendar[ds].push({
-    hour,
-    blockId: hostBlockId || '',
-    mode: hostMode || 'group',
-    comment,
-    guest: true,
-    hostGroup: hostGroupKey
+    hour, blockId: hostBlockId || '', mode: hostMode || 'group',
+    comment, guest: true, hostGroup: hostGroupKey
   });
-
   saveData(DB);
   return true;
 }
@@ -216,17 +221,12 @@ function addGuestToTraining(fighterId, ds, hour, hostGroupKey, hostBlockId, host
 function removeGuestFromTraining(fighterId, ds, hour) {
   const f = DB.fighters.find(x => x.id === fighterId);
   if (!f || !f.calendar[ds]) return false;
-
   const idx = f.calendar[ds].findIndex(s => s.hour === hour && s.guest);
   if (idx < 0) return false;
 
   f.calendar[ds].splice(idx, 1);
   if (!f.calendar[ds].length) delete f.calendar[ds];
-
-  if (f.attendance) {
-    f.attendance = f.attendance.filter(a => !(a.date === ds && a.hour === hour));
-  }
-
+  if (f.attendance) f.attendance = f.attendance.filter(a => !(a.date === ds && a.hour === hour));
   saveData(DB);
   return true;
 }
