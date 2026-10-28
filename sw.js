@@ -1,7 +1,7 @@
 /* ============================================================
    SW.JS — Service Worker
    ============================================================ */
-const CACHE_NAME = 'boxcoach-v30';
+const CACHE_NAME = 'boxcoach-v31';
 
 const APP_FILES = [
   './', './index.html', './style.css', './calendar-style.css', './config.js', './utils.js', './data.js', './cloud.js',

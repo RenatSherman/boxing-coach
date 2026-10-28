@@ -25,16 +25,22 @@ window.openAssignTrainingModal = (presetFighterId, presetDate, presetHour) => {
       .sort((a,b)=>a.name.localeCompare(b.name))
   })).filter(g => g.fighters.length);
 
-  // Список бойцов для выпадающего меню (сгруппированный)
+  // Список бойцов для выпадающего меню (сгруппированный, внутри details)
   const groupsHtml = groupsForList.map(g => `
-    <div class="group-title">${g.name}</div>
-    ${g.fighters.map(f => `
-      <label>
-        <input type="checkbox" class="tr_fighter" value="${f.id}"
-          ${presetFighterId === f.id ? 'checked' : ''}>
-        <span>${f.name}</span>
-      </label>
-    `).join('')}
+    <details class="tr-group-details">
+      <summary class="tr-group-summary">
+        ${g.name} <span class="badge-count">${g.fighters.length}</span>
+      </summary>
+      <div class="tr-group-content">
+        ${g.fighters.map(f => `
+          <label>
+            <input type="checkbox" class="tr_fighter" value="${f.id}"
+              ${presetFighterId === f.id ? 'checked' : ''}>
+            <span>${f.name}</span>
+          </label>
+        `).join('')}
+      </div>
+    </details>
   `).join('');
 
   const selectedHour = (presetHour !== null && presetHour !== undefined && !isNaN(presetHour))
@@ -103,7 +109,7 @@ window.openAssignTrainingModal = (presetFighterId, presetDate, presetHour) => {
         <button type="button" class="group-pick-btn" onclick="clearAllFighters(event)" style="flex:1; background:#fef2f2; color:#e63946; border-color:#fee2e2;">Очистить</button>
       </div>
 
-      <!-- Выпадающий список для точечного выбора -->
+      <!-- Выпадающий список с группами -->
       <div class="fighters-dropdown" id="tr_dropdown">
         <button type="button" class="fighters-dropdown-btn" id="tr_dropdown_btn"
                 onclick="toggleFightersDropdown(event)">
@@ -114,6 +120,11 @@ window.openAssignTrainingModal = (presetFighterId, presetDate, presetHour) => {
           ${groupsHtml || '<div class="empty">Нет бойцов</div>'}
         </div>
       </div>
+
+      <!-- Кнопка добавления гостя из другой группы -->
+      <button type="button" class="ghost small" style="width:100%; margin-top:12px; border:1px dashed #ccc;" onclick="addGuestToTrainingModal()">
+        ➕ Добавить бойца из другой группы (как гостя)
+      </button>
 
       <div class="modal-actions" style="margin-top:20px;">
         <button class="secondary" onclick="Modal.close()">Отмена</button>
@@ -129,7 +140,6 @@ window.openAssignTrainingModal = (presetFighterId, presetDate, presetHour) => {
     updateFightersDropdownText();
     document.addEventListener('click', outsideDropdownClick, true);
     
-    // Если передан конкретный боец, отмечаем его
     if (presetFighterId) {
       const btn = document.getElementById('tr_dropdown_btn');
       if (btn) btn.classList.add('open');
@@ -148,11 +158,9 @@ window.toggleGroupSelect = (groupKey, e) => {
     return f && f.group === groupKey;
   });
 
-  // Если все уже выбраны — снимаем. Если нет — ставим всем.
   const allChecked = groupFighters.every(cb => cb.checked);
   groupFighters.forEach(cb => cb.checked = !allChecked);
   
-  // Визуально подсвечиваем кнопку группы
   const btn = document.querySelector(`.group-pick-btn[data-group="${groupKey}"]`);
   if (btn) {
     if (!allChecked) {
@@ -243,6 +251,60 @@ window.submitAssignTraining = () => {
   if (state.tab === 'dashboard') renderDashboard();
   else if (state.tab === 'fighters' && state.currentFighter) renderFighterDetail();
   else render();
+};
+
+// Функция добавления гостя из другой группы
+window.addGuestToTrainingModal = () => {
+  const modalContent = document.querySelector('.modal');
+  if (!modalContent) return;
+  
+  const groupsForList = getFighterGroups().map(g => ({
+    ...g,
+    fighters: DB.fighters.filter(f => f.group === g.key).sort((a,b)=>a.name.localeCompare(b.name))
+  })).filter(g => g.fighters.length);
+
+  const groupsHtml = groupsForList.map(g => `
+    <div class="guest-group">
+      <div class="guest-group-title">${g.name}</div>
+      ${g.fighters.map(f => `
+        <label class="guest-item">
+          <input type="checkbox" class="guest-check" value="${f.id}">
+          <span>${f.name}</span>
+        </label>
+      `).join('')}
+    </div>
+  `).join('');
+
+  // Меняем контент на выбор гостя
+  modalContent.innerHTML = `
+    <h3>Добавить гостя</h3>
+    <p style="font-size:13px; color:#666; margin-bottom:12px;">Выберите бойца из любой группы, чтобы добавить его к текущей тренировке.</p>
+    <div class="guest-list" style="max-height:400px; overflow-y:auto; border:1px solid #eee; border-radius:8px; padding:8px; margin-bottom:16px;">
+      ${groupsHtml}
+    </div>
+    <div class="modal-actions">
+      <button class="secondary" onclick="openAssignTrainingModal()">Назад</button>
+      <button class="primary" onclick="confirmAddGuest()">Добавить</button>
+    </div>
+  `;
+};
+
+window.confirmAddGuest = () => {
+  const checks = [...document.querySelectorAll('.guest-check:checked')];
+  if (!checks.length) { toast('Выберите бойца', 'error'); return; }
+
+  // Возвращаемся к основной модалке и добавляем выбранных
+  openAssignTrainingModal();
+  
+  setTimeout(() => {
+    const allCheckboxes = [...document.querySelectorAll('#tr_dropdown_menu .tr_fighter')];
+    checks.forEach(guestCheck => {
+      const cb = allCheckboxes.find(c => c.value === guestCheck.value);
+      if (cb) cb.checked = true;
+    });
+    updateFightersDropdownText();
+    toast('Гость добавлен в список', 'ok');
+  }, 50);
 };
 
 window.deleteTraining = (fighterId, dateStr, idx) => {
