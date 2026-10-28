@@ -13,11 +13,11 @@ h2 { margin-top: 20px; }
 .lock-box button.primary-btn { display: block; width: 100%; margin: 12px 0 0; padding: 12px 32px; background: #e63946; color: #fff; border: none; border-radius: 10px; font-size: 16px; cursor: pointer; }
 .err { color: #e63946; min-height: 20px; margin: 8px 0; font-size: 13px; }
 
-/* ===== Шапка ===== */
+/* ===== Шапка и меню ===== */
 header { background: #111; color: #fff; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; padding-top: env(safe-area-inset-top); }
 header h1 { font-size: 18px; margin: 0; white-space: nowrap; }
 
-/* ===== НИЖНЕЕ МЕНЮ (iOS STYLE) ===== */
+/* Нижнее меню для мобильных */
 .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: #111; display: flex; overflow-x: auto; padding: 8px 10px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid #333; z-index: 1000; gap: 6px; scrollbar-width: none; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); }
 .bottom-nav::-webkit-scrollbar { display: none; }
 .bottom-nav button { background: transparent; color: #888; border: none; padding: 6px 12px; border-radius: 8px; font-size: 13px; white-space: nowrap; flex-shrink: 0; transition: all 0.2s; }
@@ -57,7 +57,7 @@ button.ghost { background: #eee; color: #111; }
 .slot.personal { background: #FCE7F3; border-color: #EC4899; color: #831843; }
 .slot.group { background: #DBEAFE; border-color: #3B82F6; color: #1E3A8A; }
 
-/* ===== НОВЫЙ КАЛЕНДАРЬ ТРЕНЕРА (iOS СТИЛЬ) ===== */
+/* ===== КАЛЕНДАРЬ ТРЕНЕРА (iOS СТИЛЬ) ===== */
 .ios-calendar-wrapper { background: #000; color: #fff; border-radius: 12px; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 100%; margin: 0 auto; display: flex; flex-direction: column; height: calc(100vh - 190px); min-height: 450px; }
 .ios-cal-header { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #222; flex-shrink: 0; }
 .ios-cal-title { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
@@ -143,7 +143,7 @@ details.dash-accordion .dash-accordion-content { padding: 0 16px 16px 16px; bord
 .att-history-item .att-h-date { flex-shrink: 0; color: #666; }
 .att-history-item .att-h-info b { color: #111; }
 
-/* ===== ОТЧЕТЫ (КАРТОЧКИ ВМЕСТО ТАБЛИЦЫ) ===== */
+/* ===== ОТЧЕТЫ ===== */
 .report-chart-wrap { position: relative; height: 200px; width: 100%; margin-bottom: 12px; background: #fff; padding: 10px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
 .report-cards-list { display: flex; flex-direction: column; gap: 10px; }
 .report-card { background: #fff; border-radius: 12px; padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); border-left: 4px solid #4A90E2; }
@@ -171,4 +171,61 @@ details.dash-accordion .dash-accordion-content { padding: 0 16px 16px 16px; bord
   h2 { font-size: 20px; margin-top: 10px; }
   .card { padding: 12px; }
   .grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* =========================================
+   КОМПЬЮТЕРНАЯ ВЕРСИЯ (ЭКРАНЫ ШИРЕ 768px)
+   ========================================= */
+@media (min-width: 768px) {
+  /* Прячем мобильное меню внизу */
+  .bottom-nav { display: none; }
+  
+  /* Возвращаем меню наверх в шапку */
+  header {
+    flex-wrap: wrap;
+    padding: 10px 30px;
+  }
+  header::after {
+    content: '';
+    display: block;
+  }
+  
+  /* Навигация наверх */
+  #mainNav {
+    display: flex !important;
+    position: static !important;
+    background: transparent !important;
+    flex-direction: row !important;
+    padding: 0 !important;
+    gap: 10px;
+    flex: 1;
+    justify-content: flex-end;
+  }
+  #mainNav button {
+    color: #aaa;
+    border: 1px solid transparent;
+    padding: 8px 16px;
+    font-size: 14px;
+  }
+  #mainNav button:hover {
+    color: #fff;
+    border-color: #444;
+  }
+  #mainNav button.active {
+    background: #e63946;
+    color: #fff;
+    font-weight: bold;
+  }
+
+  /* Убираем нижний отступ у контента, так как меню внизу больше нет */
+  main {
+    padding: 30px;
+    max-width: 1200px;
+    padding-bottom: 30px;
+  }
+
+  /* Календарь на компьютере делаем повыше */
+  .ios-calendar-wrapper {
+    height: 600px;
+  }
 }
