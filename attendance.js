@@ -23,8 +23,8 @@ const Attendance = (() => {
   }
 
   function render() {
-    // Если по какой-то причине дата сбросилась в пустоту, ставим сегодня
-    if (!viewDate) viewDate = todayStr();
+    // Жестко ставим сегодняшнюю дату, если она пустая или старая
+    if (!viewDate || viewDate === 'undefined') viewDate = todayStr();
 
     const sessions = getTrainingSessions(viewDate);
     const dateObj = new Date(viewDate + 'T00:00:00');
@@ -48,7 +48,7 @@ const Attendance = (() => {
       ${!sessions.length
         ? `<div class="card" style="text-align:center; padding:30px 20px;">
              <div style="font-size:40px; margin-bottom:10px;">📅</div>
-             <h3 style="color:#666;">На сегодня назначенных тренировок нет</h3>
+             <h3 style="color:#666;">На эту дату назначенных тренировок нет</h3>
              <p style="color:#999; font-size:14px; margin-top:8px;">Вы можете назначить их в календаре на главной странице.</p>
            </div>`
         : `
@@ -75,7 +75,16 @@ const Attendance = (() => {
     const allMarked = session.fighters.every(f => f.status !== null);
     const title = session.mode === 'group' ? groupName(session.group) : (session.fighters[0]?.name || 'Индивидуально');
 
-    // ВАЖНО: используем тег <details> для аккордеона
+    // Дополнительная кнопка для индивидуальных тренировок
+    const isPersonal = session.mode === 'personal';
+    const doneBtn = isPersonal && !allMarked
+      ? `<button class="success small" style="width:100%; margin-bottom:8px;" onclick="Attendance.markAll('${session.key}', 'present')">✓ Проведена (Отметить всех)</button>`
+      : '';
+      
+    const cancelBtn = isPersonal && !allMarked
+      ? `<button class="ghost small" style="width:100%;" onclick="Attendance.markAll('${session.key}', 'cancelled')">🚫 Не проведена (указать причину)</button>`
+      : '';
+
     return `
       <details class="att-card ${allMarked ? 'done' : ''}">
         <summary class="att-card-header">
@@ -119,14 +128,15 @@ const Attendance = (() => {
           }).join('')}
         </div>
         
-        <div class="att-actions">
-          <button class="success small" onclick="Attendance.markAll('${session.key}', 'present')">✓ Всех</button>
-          <button class="ghost small" onclick="Attendance.markAll('${session.key}', 'absent')">✗ Никого</button>
-          <button class="small" onclick="Attendance.openAddGuest('${session.key}')">➕ Добавить</button>
+        <div class="att-actions" style="flex-direction: column;">
+          ${doneBtn}
+          ${cancelBtn}
+          <div style="display:flex; gap:8px; width:100%;">
+            ${isPersonal ? '' : `<button class="success small" style="flex:1;" onclick="Attendance.markAll('${session.key}', 'present')">✓ Всех</button>`}
+            ${isPersonal ? '' : `<button class="ghost small" style="flex:1;" onclick="Attendance.markAll('${session.key}', 'absent')">✗ Никого</button>`}
+            <button class="small" style="flex:1;" onclick="Attendance.openAddGuest('${session.key}')">➕ Добавить</button>
+          </div>
         </div>
-        ${session.mode === 'personal' && !allMarked 
-          ? `<button class="ghost small" style="width:calc(100% - 32px); margin: 0 16px 16px; display:block;" onclick="Attendance.markAll('${session.key}', 'cancelled')">🚫 Отменить тренировку</button>`
-          : ''}
       </details>
     `;
   }

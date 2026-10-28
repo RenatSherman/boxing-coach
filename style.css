@@ -41,12 +41,9 @@ main { padding: 16px; padding-bottom: 100px; max-width: 1400px; margin: 0 auto; 
 .fighters-group-acc { background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.06); border: 1px solid #eee; overflow: hidden; }
 .fighters-group-acc summary { padding: 14px 16px; font-size: 16px; font-weight: 600; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; user-select: none; }
 .fighters-group-acc summary::-webkit-details-marker { display: none; }
-
-/* Стрелочка теперь рядом с числом бойцов */
 .summary-left { display: flex; align-items: center; gap: 8px; flex: 1; }
 .summary-left::after { content: '▾'; font-size: 14px; color: #888; transition: transform 0.2s; margin-left: 4px; }
 .fighters-group-acc[open] .summary-left::after { transform: rotate(180deg); }
-
 .fighters-group-acc[open] summary { border-bottom: 1px solid #f0f0f0; }
 .badge-count { background: #e5e7eb; color: #374151; font-size: 12px; padding: 2px 8px; border-radius: 10px; }
 .group-actions-mini { display: flex; gap: 4px; }
@@ -69,11 +66,10 @@ button.ghost { background: #eee; color: #111; }
 /* ===== Карточка бойца ===== */
 .profile-card { border-top: 4px solid #e63946; }
 .profile-card input, .profile-card select { background: #fafafa; }
-
 .assess-history-list { display: flex; flex-direction: column; gap: 10px; }
 .assess-history-item { background: #fff; border-radius: 10px; padding: 12px; border-left: 4px solid #ccc; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
 
-/* ===== Календарь бойца (ИСПРАВЛЕНА ВЫСОТА КВАДРАТИКОВ) ===== */
+/* ===== Календарь бойца ===== */
 .cal-toolbar { display: flex; gap: 8px; align-items: center; margin: 10px 0; flex-wrap: wrap; }
 .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
 .cal-head { font-weight: 600; text-align: center; padding: 6px 2px; background: #111; color: #fff; border-radius: 4px; font-size: 12px; }
@@ -166,8 +162,9 @@ details.dash-accordion .dash-accordion-content { padding: 0 16px 16px 16px; bord
 .att-check-item.guest { background: #fffbeb; border-color: #fcd34d; }
 .att-check-item.guest.checked { background: #fef3c7; border-color: #f59e0b; }
 .att-guest-badge { display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 700; color: #92400e; background: #fcd34d; padding: 2px 6px; border-radius: 6px; text-transform: uppercase; }
-.att-actions { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 16px 16px; }
-.att-actions button { flex: 1; min-width: 100px; font-size: 13px; padding: 10px; }
+.att-actions { display: flex; flex-direction: column; gap: 8px; padding: 0 16px 16px; }
+.att-actions .row-btns { display: flex; gap: 8px; width: 100%; }
+.att-actions .row-btns button { flex: 1; font-size: 13px; padding: 10px; }
 
 /* ===== ОТЧЕТЫ ===== */
 .report-chart-wrap { position: relative; height: 200px; width: 100%; margin-bottom: 12px; background: #fff; padding: 10px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }

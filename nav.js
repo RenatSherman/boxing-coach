@@ -19,13 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
       state.tab = b.dataset.tab;
       state.currentFighter = null;
       setActiveTab(state.tab);
-      
-      // Если переходим в Отметку, ПРИНУДИТЕЛЬНО ставим сегодняшнюю дату
-      if (state.tab === 'attendance' && typeof Attendance !== 'undefined') {
-        Attendance.setToday(); // Эта функция сама вызовет render()
-      } else {
-        render();
-      }
+      render(); // Просто вызываем render, а модули сами разберутся
     };
   });
 });
@@ -103,7 +97,7 @@ function render() {
     else if (state.tab === 'fighters') renderFighters();
     else if (state.tab === 'attendance') {
       if (typeof Attendance === 'undefined') {
-        app.innerHTML = `<h2>Отметка тренировки</h2><div class="card">Модуль не загружен.</div>`;
+        app.innerHTML = `<h2>Отметка</h2><div class="card">Модуль не загружен.</div>`;
       } else {
         Attendance.render();
       }
