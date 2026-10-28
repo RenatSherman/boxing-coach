@@ -13,15 +13,15 @@ h2 { margin-top: 20px; }
 .lock-box button.primary-btn { display: block; width: 100%; margin: 12px 0 0; padding: 12px 32px; background: #e63946; color: #fff; border: none; border-radius: 10px; font-size: 16px; cursor: pointer; }
 .err { color: #e63946; min-height: 20px; margin: 8px 0; font-size: 13px; }
 
-/* ===== Шапка и меню ===== */
+/* ===== Шапка ===== */
 header { background: #111; color: #fff; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; padding-top: env(safe-area-inset-top); }
 header h1 { font-size: 18px; margin: 0; white-space: nowrap; }
 
-/* Нижнее меню для мобильных */
-.bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: #111; display: flex; overflow-x: auto; padding: 8px 10px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid #333; z-index: 1000; gap: 6px; scrollbar-width: none; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); }
-.bottom-nav::-webkit-scrollbar { display: none; }
-.bottom-nav button { background: transparent; color: #888; border: none; padding: 6px 12px; border-radius: 8px; font-size: 13px; white-space: nowrap; flex-shrink: 0; transition: all 0.2s; }
-.bottom-nav button.active { color: #fff; background: #333; font-weight: 600; }
+/* ===== МЕНЮ (ПО УМОЛЧАНИЮ МОБИЛЬНОЕ, ВНИЗУ) ===== */
+.main-nav { position: fixed; bottom: 0; left: 0; right: 0; background: #111; display: flex; overflow-x: auto; padding: 8px 10px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid #333; z-index: 1000; gap: 6px; scrollbar-width: none; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); }
+.main-nav::-webkit-scrollbar { display: none; }
+.main-nav button { background: transparent; color: #888; border: none; padding: 6px 12px; border-radius: 8px; font-size: 13px; white-space: nowrap; flex-shrink: 0; transition: all 0.2s; cursor: pointer; }
+.main-nav button.active { color: #fff; background: #333; font-weight: 600; }
 
 /* ===== Основное ===== */
 main { padding: 16px; padding-bottom: 100px; max-width: 1400px; margin: 0 auto; }
@@ -177,47 +177,47 @@ details.dash-accordion .dash-accordion-content { padding: 0 16px 16px 16px; bord
    КОМПЬЮТЕРНАЯ ВЕРСИЯ (ЭКРАНЫ ШИРЕ 768px)
    ========================================= */
 @media (min-width: 768px) {
-  /* Прячем мобильное меню внизу */
-  .bottom-nav { display: none; }
-  
-  /* Возвращаем меню наверх в шапку */
+  /* Шапка становится объемной и вмещает меню */
   header {
     flex-wrap: wrap;
-    padding: 10px 30px;
-  }
-  header::after {
-    content: '';
-    display: block;
+    padding: 0 30px;
+    height: 64px;
   }
   
-  /* Навигация наверх */
-  #mainNav {
-    display: flex !important;
-    position: static !important;
-    background: transparent !important;
-    flex-direction: row !important;
-    padding: 0 !important;
-    gap: 10px;
+  /* Прячем старое мобильное меню снизу */
+  .main-nav { 
+    position: static;
+    display: flex;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    margin-left: 40px;
     flex: 1;
-    justify-content: flex-end;
+    gap: 10px;
+    overflow: visible;
   }
-  #mainNav button {
-    color: #aaa;
-    border: 1px solid transparent;
+
+  /* Стилизуем кнопки навигации для ПК */
+  .main-nav button {
     padding: 8px 16px;
     font-size: 14px;
+    color: #aaa;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
   }
-  #mainNav button:hover {
+  .main-nav button:hover {
     color: #fff;
     border-color: #444;
   }
-  #mainNav button.active {
+  .main-nav button.active {
     background: #e63946;
     color: #fff;
     font-weight: bold;
   }
 
-  /* Убираем нижний отступ у контента, так как меню внизу больше нет */
+  /* Контент становится шире */
   main {
     padding: 30px;
     max-width: 1200px;

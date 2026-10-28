@@ -6,7 +6,8 @@ const state = { tab: 'dashboard', currentFighter: null, exTab: 'exercises' };
 
 /* ================== НАВИГАЦИЯ ================== */
 function setActiveTab(tab) {
-  document.querySelectorAll('#mainNav button').forEach(x => {
+  // Ищем кнопки в любом месте документа, у которых есть data-tab
+  document.querySelectorAll('button[data-tab]').forEach(x => {
     x.classList.toggle('active', x.dataset.tab === tab);
   });
 }
@@ -14,26 +15,16 @@ function setActiveTab(tab) {
 document.addEventListener('DOMContentLoaded', () => {
   app = document.getElementById('app');
 
-  document.querySelectorAll('#mainNav button').forEach(b => {
+  // Навешиваем обработчики на все кнопки меню
+  document.querySelectorAll('button[data-tab]').forEach(b => {
     b.onclick = () => {
       state.tab = b.dataset.tab;
       state.currentFighter = null;
       setActiveTab(state.tab);
       render();
-      toggleMenu(false);
     };
   });
-  
-  const toggle = document.getElementById('menuToggle');
-  if (toggle) toggle.onclick = () => toggleMenu();
 });
-
-function toggleMenu(force) {
-  const nav = document.getElementById('mainNav');
-  if (!nav) return;
-  const open = force !== undefined ? force : !nav.classList.contains('open');
-  nav.classList.toggle('open', open);
-}
 
 /* ================== МОДАЛЬНЫЕ ОКНА ================== */
 const Modal = (() => {
@@ -91,8 +82,10 @@ const LockScreen = (() => {
     return msg;
   }
   function init() {
-    document.getElementById('loginPass').onkeydown = e => { if (e.key === 'Enter') doLogin(); };
-    document.getElementById('regPass2').onkeydown = e => { if (e.key === 'Enter') doRegister(); };
+    const passInput = document.getElementById('loginPass');
+    if (passInput) passInput.onkeydown = e => { if (e.key === 'Enter') doLogin(); };
+    const regInput = document.getElementById('regPass2');
+    if (regInput) regInput.onkeydown = e => { if (e.key === 'Enter') doRegister(); };
   }
   return { init, showTab, doLogin, doRegister };
 })();
@@ -120,6 +113,8 @@ function render() {
   } catch (e) {
     console.error('[render] Ошибка:', e);
     app.innerHTML = `<div class="card" style="border-left:4px solid #dc2626;background:#fef2f2;padding:16px;">
-        <h3 style="margin-top:0;color:#991b1b;">Ошибка</h3><p>${e.message}</p></div>`;
+        <h3 style="margin-top:0;color:#991b1b;">Ошибка в разделе «${state.tab}»</h3>
+        <p>${e.message}</p>
+        <pre style="background:#fff;padding:10px;border-radius:6px;font-size:12px;overflow:auto;">${(e.stack || '').split('\n').slice(0,5).join('\n')}</pre></div>`;
   }
 }
