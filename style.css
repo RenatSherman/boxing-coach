@@ -99,6 +99,11 @@ button.ghost { background: #eee; color: #111; }
 .tr-group-content label:hover { background: #f5f5f5; }
 .tr-group-content input[type=checkbox] { width: 18px; height: 18px; accent-color: #e63946; margin: 0; }
 
+/* Новые стили для выравнивания числа и стрелочки */
+.group-name { flex: 1; font-weight: 600; font-size: 14px; }
+.group-right { display: flex; align-items: center; gap: 8px; }
+.group-right .badge-count { margin: 0; }
+
 /* ===== Отметка ===== */
 .att-toolbar { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 16px; }
 .att-toolbar b { font-size: 16px; text-align: center; }
