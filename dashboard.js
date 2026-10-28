@@ -24,29 +24,19 @@ function renderDashboard() {
   const todaySessions = getTrainingSessions(today);
 
   app.innerHTML = `
-    <h2>Дашборд</h2>
-
     ${todaySessions.length ? `
-      <div class="card" style="border-left:4px solid #22c55e;background:#f0fdf4;">
-        <h3>📅 Сегодня тренировки (${todaySessions.length})</h3>
-        <p style="font-size:13px;color:#166534;margin:0 0 8px;">
-          Не забудьте отметить посещения.
-        </p>
-        <button class="success" onclick="state.tab='attendance';Attendance.setToday();setActiveTab('attendance');render()">
+      <div class="card" style="border-left:4px solid #22c55e;background:#f0fdf4; margin-top: 0; margin-bottom: 12px; padding: 12px;">
+        <div style="font-size:14px; font-weight:600; color:#166534; margin-bottom:4px;">📅 Сегодня тренировки (${todaySessions.length})</div>
+        <button class="success" style="width:100%; padding:10px;" onclick="state.tab='attendance';Attendance.setToday();setActiveTab('attendance');render()">
           Перейти к отметке
         </button>
       </div>
     ` : ''}
 
-    <div class="grid">
-      ${groupsCards}
-      <div class="card"><h3>Средний рост</h3><p class="big">${avg(DB.fighters.map(f=>+f.height))} см</p></div>
-    </div>
-
-    <h3>Календарь тренера</h3>
+    <h3 style="margin-top:0;">Календарь</h3>
     ${CoachCalendar.render()}
 
-    <!-- Аккордеон: Последние тренировки -->
+    <!-- Аккордеоны под календарем -->
     <details class="dash-accordion">
       <summary>📋 Последние тренировки</summary>
       <div class="dash-accordion-content">
@@ -54,7 +44,6 @@ function renderDashboard() {
       </div>
     </details>
 
-    <!-- Аккордеон: Требуют внимания -->
     <details class="dash-accordion">
       <summary>⚠️ Требуют внимания (${forgotten.length})</summary>
       <div class="dash-accordion-content">
@@ -62,13 +51,29 @@ function renderDashboard() {
       </div>
     </details>
 
-    <h3>Топ-3 бойца (конец сезона, из ${MAX_SCORE})</h3>
-    <ol>${top.map(f=>`<li>${f.name} — ${fighterAvg(f).toFixed(2)}</li>`).join('') || '<i>нет данных</i>'}</ol>
-    
-    <h3>Динамика сезона</h3>
-    <canvas id="dashChart" height="120"></canvas>
+    <!-- Всё остальное (статистика, группы) убрано вниз -->
+    <details class="dash-accordion">
+      <summary>📊 Статистика и группы</summary>
+      <div class="dash-accordion-content">
+        <div class="grid" style="margin-bottom:12px;">
+          ${groupsCards}
+          <div class="card"><h3>Средний рост</h3><p class="big">${avg(DB.fighters.map(f=>+f.height))} см</p></div>
+        </div>
+        <h3>Топ-3 бойца (из ${MAX_SCORE})</h3>
+        <ol style="margin-top:4px; padding-left:20px;">
+          ${top.map(f=>`<li>${f.name} — ${fighterAvg(f).toFixed(2)}</li>`).join('') || '<i>нет данных</i>'}
+        </ol>
+        <h3>Динамика сезона</h3>
+        <canvas id="dashChart" height="160"></canvas>
+      </div>
+    </details>
   `;
-  drawDashChart();
+  
+  // Отрисовка графика, если аккордеон открыт
+  setTimeout(() => {
+    if (document.getElementById('dashChart')) drawDashChart();
+  }, 100);
+
   if (DB.settings.notifications) Calendar.requestPerm();
 }
 
@@ -80,33 +85,17 @@ function renderRecentTrainingsContent(recent) {
   const items = recent.map(t => {
     const [y, m, d] = t.date.split('-');
     const exName = t.blockId ? exerciseName(t.blockId) : 'Без упражнения';
-    const commentHtml = t.comment
-      ? `<br><small class="comment">💬 ${t.comment}</small>`
-      : '';
+    const commentHtml = t.comment ? `<br><small class="comment">💬 ${t.comment}</small>` : '';
     return `
       <div class="journal-item" onclick="openFighter('${t.fighter.id}')">
-        <div class="j-date">
-          <b>${d}.${m}</b>
-          ${String(t.hour).padStart(2,'0')}:00
-        </div>
-        <div class="j-info">
-          <b>${t.fighter.name}</b>
-          <small>${exName}</small>
-          ${commentHtml}
-        </div>
+        <div class="j-date"><b>${d}.${m}</b>${String(t.hour).padStart(2,'0')}:00</div>
+        <div class="j-info"><b>${t.fighter.name}</b><small>${exName}</small>${commentHtml}</div>
         <span class="j-mode ${t.mode}">${modeLabel(t.mode)}</span>
       </div>
     `;
   }).join('');
 
-  return `
-    <p style="color:#666;font-size:13px;margin-top:0;">
-      Свежие события по всем бойцам. Кликните, чтобы открыть карточку бойца.
-    </p>
-    <div class="journal-list">
-      ${items}
-    </div>
-  `;
+  return `<div class="journal-list">${items}</div>`;
 }
 
 function renderForgottenList(forgotten) {
@@ -114,17 +103,11 @@ function renderForgottenList(forgotten) {
     return '<p style="color:#16a34a;margin:0;">Все бойцы тренируются регулярно. Отлично!</p>';
   }
   return `
-    <p style="font-size:13px;color:#666;margin-top:0;margin-bottom:8px">Бойцы без тренировок 14+ дней</p>
     <ul class="forgotten-list" style="margin:0;">
       ${forgotten.map(({fighter, daysAgo}) => `
         <li class="forgotten-item" onclick="openFighter('${fighter.id}')">
-          <div class="info">
-            <b>${fighter.name}</b>
-            <small>${groupName(fighter.group)}</small>
-          </div>
-          <span class="days">
-            ${daysAgo === null ? 'Нет тренировок' : daysAgo + ' дн.'}
-          </span>
+          <div class="info"><b>${fighter.name}</b><small>${groupName(fighter.group)}</small></div>
+          <span class="days">${daysAgo === null ? 'Нет тренировок' : daysAgo + ' дн.'}</span>
         </li>
       `).join('')}
     </ul>

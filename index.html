@@ -2,8 +2,10 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#111111">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Boxing Coach</title>
 <link rel="manifest" href='data:application/manifest+json,{"name":"Boxing Coach","short_name":"BoxCoach","start_url":"./","display":"standalone","background_color":"%23111111","theme_color":"%23111111"}'>
 <link rel="stylesheet" href="style.css">
@@ -46,20 +48,21 @@
 <div id="appRoot" style="display:none">
   <header>
     <h1>🥊 Boxing Coach</h1>
-    <nav id="mainNav">
-      <button data-tab="dashboard">Дашборд</button>
-      <button data-tab="fighters">Бойцы</button>
-      <button data-tab="attendance">Отметка</button>
-      <button data-tab="reports">Отчёт</button>
-      <button data-tab="compare">Сравнение</button>
-      <button data-tab="exercises">Упражнения и замеры</button>
-      <button data-tab="settings">⚙</button>
-    </nav>
     <div id="syncBadge" class="sync-badge" title="Статус синхронизации">●</div>
-    <button id="menuToggle" class="menu-toggle">☰</button>
   </header>
-  
+
   <main id="app"></main>
+  
+  <!-- Меню переехало вниз, как в iOS -->
+  <nav id="mainNav" class="bottom-nav">
+    <button data-tab="dashboard" class="active">Дашборд</button>
+    <button data-tab="fighters">Бойцы</button>
+    <button data-tab="attendance">Отметка</button>
+    <button data-tab="reports">Отчёт</button>
+    <button data-tab="compare">Сравнение</button>
+    <button data-tab="exercises">Справочник</button>
+    <button data-tab="settings">⚙</button>
+  </nav>
   
   <div id="toast" class="toast"></div>
 </div>
