@@ -1,15 +1,5 @@
 /* ============================================================
    FIGHTERS-CORE.JS — тренировки, создание бойца, фото
-   ============================================================
-   Зависимости: config.js, utils.js, data.js, cloud.js.
-   Подключается ПЕРЕД fighters.js.
-
-   Что внутри:
-   - Назначение и удаление тренировок (модалка, выпадающий список)
-   - Создание нового бойца
-   - Изменение базовых данных (имя, дата рождения, рост, вес)
-   - Загрузка и сжатие фото
-   - Удаление бойца
    ============================================================ */
 
 /* ================== ТРЕНИРОВКИ ================== */
@@ -60,37 +50,57 @@ window.openAssignTrainingModal = (presetFighterId, presetDate, presetHour) => {
     `).join('')}
   `;
 
+  // Генерируем кнопки для групп
+  const groupButtonsHtml = groups.map(g => {
+    const count = DB.fighters.filter(f => f.group === g.key).length;
+    if (!count) return '';
+    return `<button type="button" class="group-pick-btn" data-group="${g.key}" onclick="toggleGroupSelect('${g.key}', event)">
+      ${g.name} (${count})
+    </button>`;
+  }).join('');
+
   Modal.open(`
     <div class="modal" onclick="event.stopPropagation()">
       <h3>Назначить тренировку</h3>
       <label>Дата</label>
       <input id="tr_date" type="date" value="${presetDate || todayStr()}">
-      <label>Час (06:00–22:00)</label>
-      <select id="tr_hour">
-        ${Array.from({length: 17}, (_,i)=>i+6).map(h =>
-          `<option value="${h}" ${h === selectedHour ? 'selected' : ''}>${String(h).padStart(2,'0')}:00</option>`).join('')}
-      </select>
+      
+      <div style="display:flex; gap:10px;">
+        <div style="flex:1;">
+          <label>Час</label>
+          <select id="tr_hour">
+            ${Array.from({length: 17}, (_,i)=>i+6).map(h =>
+              `<option value="${h}" ${h === selectedHour ? 'selected' : ''}>${String(h).padStart(2,'0')}:00</option>`).join('')}
+          </select>
+        </div>
+        <div style="flex:1;">
+          <label>Формат</label>
+          <select id="tr_mode">
+            <option value="self">Самостоятельно</option>
+            <option value="personal">Индивидуально</option>
+            <option value="group">Группа</option>
+          </select>
+        </div>
+      </div>
+
       <label>Упражнение (необязательно)</label>
       <select id="tr_block">
         ${exerciseOptionsHtml}
       </select>
-      <label>Формат</label>
-      <select id="tr_mode">
-        <option value="self">Самостоятельно</option>
-        <option value="personal">Индивидуально с тренером</option>
-        <option value="group">Работа в группе</option>
-      </select>
+
       <label>Комментарий</label>
-      <textarea id="tr_comment" placeholder="Заметки к тренировке…"></textarea>
-      <label style="margin-top:14px">Кому назначить</label>
-      <div class="group-buttons">
-        ${groups.map(g =>
-          `<button type="button" onclick="pickGroup('${g.key}', event)">Вся группа: ${makeGroupShort(g.name)}</button>`
-        ).join('')}
-        <button type="button" onclick="pickAllKids(event)">Все дети</button>
-        <button type="button" onclick="pickAll(event)">Все бойцы</button>
-        <button type="button" onclick="clearAllFighters(event)">Очистить</button>
+      <textarea id="tr_comment" placeholder="Заметки к тренировке…" rows="2"></textarea>
+
+      <label style="margin-top:16px; font-size:16px; font-weight:600;">Кому назначить</label>
+      
+      <!-- Кнопки быстрого выбора групп -->
+      <div class="group-pick-container" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;">
+        ${groupButtonsHtml}
+        <button type="button" class="group-pick-btn" onclick="pickAll(event)">Все бойцы</button>
+        <button type="button" class="group-pick-btn" onclick="clearAllFighters(event)" style="background:#fef2f2; color:#e63946; border-color:#fee2e2;">Очистить</button>
       </div>
+
+      <!-- Выпадающий список для точечного выбора -->
       <div class="fighters-dropdown" id="tr_dropdown">
         <button type="button" class="fighters-dropdown-btn" id="tr_dropdown_btn"
                 onclick="toggleFightersDropdown(event)">
@@ -101,7 +111,8 @@ window.openAssignTrainingModal = (presetFighterId, presetDate, presetHour) => {
           ${groupsHtml || '<div class="empty">Нет бойцов</div>'}
         </div>
       </div>
-      <div class="modal-actions">
+
+      <div class="modal-actions" style="margin-top:20px;">
         <button class="secondary" onclick="Modal.close()">Отмена</button>
         <button class="primary" onclick="submitAssignTraining()">Назначить</button>
       </div>
@@ -114,7 +125,45 @@ window.openAssignTrainingModal = (presetFighterId, presetDate, presetHour) => {
     });
     updateFightersDropdownText();
     document.addEventListener('click', outsideDropdownClick, true);
+    
+    // Если передали конкретного бойца, автоматически раскрываем список
+    if (presetFighterId) {
+      const btn = document.getElementById('tr_dropdown_btn');
+      if (btn) btn.classList.add('open');
+      const menu = document.getElementById('tr_dropdown_menu');
+      if (menu) menu.classList.add('open');
+    }
   }, 30);
+};
+
+// Логика переключения целой группы
+window.toggleGroupSelect = (groupKey, e) => {
+  if (e) e.stopPropagation();
+  const checkboxes = [...document.querySelectorAll('#tr_dropdown_menu .tr_fighter')];
+  const groupFighters = checkboxes.filter(cb => {
+    const f = DB.fighters.find(x => x.id === cb.value);
+    return f && f.group === groupKey;
+  });
+
+  // Если все уже выбраны — снимаем. Если нет — ставим всем.
+  const allChecked = groupFighters.every(cb => cb.checked);
+  groupFighters.forEach(cb => cb.checked = !allChecked);
+  
+  // Визуально подсвечиваем кнопку
+  const btn = document.querySelector(`.group-pick-btn[data-group="${groupKey}"]`);
+  if (btn) {
+    if (!allChecked) {
+      btn.style.background = '#e63946';
+      btn.style.color = '#fff';
+      btn.style.borderColor = '#e63946';
+    } else {
+      btn.style.background = '';
+      btn.style.color = '';
+      btn.style.borderColor = '';
+    }
+  }
+
+  updateFightersDropdownText();
 };
 
 function outsideDropdownClick(e) {
@@ -153,35 +202,21 @@ window.updateFightersDropdownText = () => {
   else text.textContent = `Выбрано: ${checked.length}`;
 };
 
-window.pickGroup = (groupKey, e) => {
-  if (e) e.stopPropagation();
-  document.querySelectorAll('#tr_dropdown_menu .tr_fighter').forEach(cb => {
-    const f = DB.fighters.find(x => x.id === cb.value);
-    cb.checked = f && f.group === groupKey;
-  });
-  updateFightersDropdownText();
-  toast('Выбрана группа: ' + groupName(groupKey), 'ok');
-};
-
-window.pickAllKids = (e) => {
-  if (e) e.stopPropagation();
-  document.querySelectorAll('#tr_dropdown_menu .tr_fighter').forEach(cb => {
-    const f = DB.fighters.find(x => x.id === cb.value);
-    cb.checked = !!(f && groupIsKids(f.group));
-  });
-  updateFightersDropdownText();
-  toast('Выбраны все дети', 'ok');
-};
-
 window.pickAll = (e) => {
   if (e) e.stopPropagation();
   document.querySelectorAll('#tr_dropdown_menu .tr_fighter').forEach(cb => cb.checked = true);
+  document.querySelectorAll('.group-pick-btn').forEach(btn => {
+    btn.style.background = '#e63946'; btn.style.color = '#fff'; btn.style.borderColor = '#e63946';
+  });
   updateFightersDropdownText();
 };
 
 window.clearAllFighters = (e) => {
   if (e) e.stopPropagation();
   document.querySelectorAll('#tr_dropdown_menu .tr_fighter').forEach(cb => cb.checked = false);
+  document.querySelectorAll('.group-pick-btn').forEach(btn => {
+    btn.style.background = ''; btn.style.color = ''; btn.style.borderColor = '';
+  });
   updateFightersDropdownText();
 };
 
@@ -195,7 +230,6 @@ window.submitAssignTraining = () => {
 
   if (!dateStr) { toast('Укажите дату', 'error'); return; }
   if (!selected.length) { toast('Выберите хотя бы одного бойца', 'error'); return; }
-  if (hour < 6 || hour > 22) { toast('Час должен быть 06:00–22:00', 'error'); return; }
 
   const n = addTraining(selected, dateStr, hour, blockId, mode, comment);
   const menu = document.getElementById('tr_dropdown_menu');
@@ -349,10 +383,7 @@ window.uploadPhoto = (event) => {
 
       const sizeKB = Math.round(dataUrl.length / 1024);
       if (sizeKB > 200) {
-        const ok = confirm(
-          `Фото весит ${sizeKB} КБ. Это больше обычного.\n\n` +
-          `Всё равно сохранить?`
-        );
+        const ok = confirm(`Фото весит ${sizeKB} КБ. Это больше обычного.\n\nВсё равно сохранить?`);
         if (!ok) return;
       }
 
