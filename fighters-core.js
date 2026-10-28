@@ -25,6 +25,7 @@ window.openAssignTrainingModal = (presetFighterId, presetDate, presetHour) => {
       .sort((a,b)=>a.name.localeCompare(b.name))
   })).filter(g => g.fighters.length);
 
+  // Список бойцов для выпадающего меню (сгруппированный)
   const groupsHtml = groupsForList.map(g => `
     <div class="group-title">${g.name}</div>
     ${g.fighters.map(f => `
@@ -50,22 +51,22 @@ window.openAssignTrainingModal = (presetFighterId, presetDate, presetHour) => {
     `).join('')}
   `;
 
-  // Генерируем кнопки для групп
-  const groupButtonsHtml = groups.map(g => {
-    const count = DB.fighters.filter(f => f.group === g.key).length;
-    if (!count) return '';
+  // Кнопки быстрого выбора групп
+  const groupButtonsHtml = groupsForList.map(g => {
     return `<button type="button" class="group-pick-btn" data-group="${g.key}" onclick="toggleGroupSelect('${g.key}', event)">
-      ${g.name} (${count})
+      ${g.name} <span class="badge-count" style="margin-left:4px;">${g.fighters.length}</span>
     </button>`;
   }).join('');
 
   Modal.open(`
     <div class="modal" onclick="event.stopPropagation()">
       <h3>Назначить тренировку</h3>
-      <label>Дата</label>
-      <input id="tr_date" type="date" value="${presetDate || todayStr()}">
       
       <div style="display:flex; gap:10px;">
+        <div style="flex:1;">
+          <label>Дата</label>
+          <input id="tr_date" type="date" value="${presetDate || todayStr()}">
+        </div>
         <div style="flex:1;">
           <label>Час</label>
           <select id="tr_hour">
@@ -73,15 +74,14 @@ window.openAssignTrainingModal = (presetFighterId, presetDate, presetHour) => {
               `<option value="${h}" ${h === selectedHour ? 'selected' : ''}>${String(h).padStart(2,'0')}:00</option>`).join('')}
           </select>
         </div>
-        <div style="flex:1;">
-          <label>Формат</label>
-          <select id="tr_mode">
-            <option value="self">Самостоятельно</option>
-            <option value="personal">Индивидуально</option>
-            <option value="group">Группа</option>
-          </select>
-        </div>
       </div>
+
+      <label>Формат</label>
+      <select id="tr_mode">
+        <option value="group">Работа в группе</option>
+        <option value="personal">Индивидуально с тренером</option>
+        <option value="self">Самостоятельно</option>
+      </select>
 
       <label>Упражнение (необязательно)</label>
       <select id="tr_block">
@@ -96,15 +96,18 @@ window.openAssignTrainingModal = (presetFighterId, presetDate, presetHour) => {
       <!-- Кнопки быстрого выбора групп -->
       <div class="group-pick-container" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;">
         ${groupButtonsHtml}
-        <button type="button" class="group-pick-btn" onclick="pickAll(event)">Все бойцы</button>
-        <button type="button" class="group-pick-btn" onclick="clearAllFighters(event)" style="background:#fef2f2; color:#e63946; border-color:#fee2e2;">Очистить</button>
+      </div>
+
+      <div style="display:flex; gap:8px; margin-bottom:12px;">
+        <button type="button" class="group-pick-btn" onclick="pickAll(event)" style="flex:1;">Выбрать всех</button>
+        <button type="button" class="group-pick-btn" onclick="clearAllFighters(event)" style="flex:1; background:#fef2f2; color:#e63946; border-color:#fee2e2;">Очистить</button>
       </div>
 
       <!-- Выпадающий список для точечного выбора -->
       <div class="fighters-dropdown" id="tr_dropdown">
         <button type="button" class="fighters-dropdown-btn" id="tr_dropdown_btn"
                 onclick="toggleFightersDropdown(event)">
-          <span id="tr_dropdown_text">Выберите бойцов</span>
+          <span id="tr_dropdown_text">Выберите бойцов вручную</span>
           <span class="arrow">▾</span>
         </button>
         <div class="fighters-dropdown-menu" id="tr_dropdown_menu">
@@ -126,6 +129,7 @@ window.openAssignTrainingModal = (presetFighterId, presetDate, presetHour) => {
     updateFightersDropdownText();
     document.addEventListener('click', outsideDropdownClick, true);
     
+    // Если передан конкретный боец, отмечаем его
     if (presetFighterId) {
       const btn = document.getElementById('tr_dropdown_btn');
       if (btn) btn.classList.add('open');
@@ -144,9 +148,11 @@ window.toggleGroupSelect = (groupKey, e) => {
     return f && f.group === groupKey;
   });
 
+  // Если все уже выбраны — снимаем. Если нет — ставим всем.
   const allChecked = groupFighters.every(cb => cb.checked);
   groupFighters.forEach(cb => cb.checked = !allChecked);
   
+  // Визуально подсвечиваем кнопку группы
   const btn = document.querySelector(`.group-pick-btn[data-group="${groupKey}"]`);
   if (btn) {
     if (!allChecked) {
@@ -190,11 +196,11 @@ window.updateFightersDropdownText = () => {
   const total = document.querySelectorAll('#tr_dropdown_menu .tr_fighter').length;
   const text = document.getElementById('tr_dropdown_text');
   if (!text) return;
-  if (checked.length === 0) text.textContent = 'Выберите бойцов';
-  else if (checked.length === total) text.textContent = `Все (${total})`;
+  if (checked.length === 0) text.textContent = 'Выберите бойцов вручную';
+  else if (checked.length === total) text.textContent = `Выбраны все (${total})`;
   else if (checked.length === 1) {
     const f = DB.fighters.find(x => x.id === checked[0].value);
-    text.textContent = f ? f.name : '1 боец';
+    text.textContent = `Выбран: ${f ? f.name : '1 боец'}`;
   }
   else text.textContent = `Выбрано: ${checked.length}`;
 };
@@ -202,7 +208,7 @@ window.updateFightersDropdownText = () => {
 window.pickAll = (e) => {
   if (e) e.stopPropagation();
   document.querySelectorAll('#tr_dropdown_menu .tr_fighter').forEach(cb => cb.checked = true);
-  document.querySelectorAll('.group-pick-btn').forEach(btn => {
+  document.querySelectorAll('.group-pick-btn[data-group]').forEach(btn => {
     btn.style.background = '#e63946'; btn.style.color = '#fff'; btn.style.borderColor = '#e63946';
   });
   updateFightersDropdownText();
@@ -211,7 +217,7 @@ window.pickAll = (e) => {
 window.clearAllFighters = (e) => {
   if (e) e.stopPropagation();
   document.querySelectorAll('#tr_dropdown_menu .tr_fighter').forEach(cb => cb.checked = false);
-  document.querySelectorAll('.group-pick-btn').forEach(btn => {
+  document.querySelectorAll('.group-pick-btn[data-group]').forEach(btn => {
     btn.style.background = ''; btn.style.color = ''; btn.style.borderColor = '';
   });
   updateFightersDropdownText();
