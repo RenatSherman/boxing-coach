@@ -4,29 +4,26 @@
 
 const Attendance = (() => {
   let viewDate = todayStr();
+  let initialized = false;
 
   function shiftDate(delta) {
     const d = new Date(viewDate + 'T00:00:00');
     d.setDate(d.getDate() + delta);
     viewDate = dateStr(d);
+    render();
   }
-  function setToday() { viewDate = todayStr(); }
+  function setToday() { viewDate = todayStr(); render(); }
   function setDate(ds) { if (ds) { viewDate = ds; render(); } }
 
   function render() {
-    // Принудительно ставим сегодняшнюю дату при загрузке
-    if (!viewDate) viewDate = todayStr();
+    // Принудительно ставим актуальную дату, если мы только что зашли на вкладку
+    if (!initialized) {
+      viewDate = todayStr();
+      initialized = true;
+    }
+
     const sessions = getTrainingSessions(viewDate);
     const dateObj = new Date(viewDate + 'T00:00:00');
-
-    let totalFighters = 0;
-    let totalPresent = 0;
-    sessions.forEach(s => {
-      s.fighters.forEach(f => {
-        totalFighters++;
-        if (f.status === 'present') totalPresent++;
-      });
-    });
 
     const dateLabel = dateObj.toLocaleDateString('ru-RU', {
       weekday: 'long', day: 'numeric', month: 'long'
@@ -37,9 +34,9 @@ const Attendance = (() => {
       <div class="att-toolbar">
         <b style="text-transform: capitalize;">${dateLabel}</b>
         <div style="display:flex; gap:6px; width:100%;">
-          <button class="ghost small" style="flex:1;" onclick="Attendance.shiftDate(-1);render()">‹ Вчера</button>
-          <button class="ghost small" style="flex:1;" onclick="Attendance.setToday();render()">Сегодня</button>
-          <button class="ghost small" style="flex:1;" onclick="Attendance.shiftDate(1);render()">Завтра ›</button>
+          <button class="ghost small" style="flex:1;" onclick="Attendance.shiftDate(-1)">‹ Вчера</button>
+          <button class="ghost small" style="flex:1;" onclick="Attendance.setToday()">Сегодня</button>
+          <button class="ghost small" style="flex:1;" onclick="Attendance.shiftDate(1)">Завтра ›</button>
         </div>
         <input type="date" value="${viewDate}" onchange="Attendance.setDate(this.value)" style="margin-top:8px;">
       </div>
@@ -74,7 +71,6 @@ const Attendance = (() => {
     const allMarked = session.fighters.every(f => f.status !== null);
     const title = session.mode === 'group' ? groupName(session.group) : (session.fighters[0]?.name || 'Индивидуально');
 
-    // Формируем список фамилий
     const checklistHtml = session.fighters.map(f => {
       const checked = f.status === 'present' ? 'checked' : '';
       const cls = f.status === 'present' ? 'checked' : '';
@@ -84,7 +80,6 @@ const Attendance = (() => {
         ? `<button class="small danger" style="margin-left:8px; padding:4px 8px;" onclick="event.preventDefault();event.stopPropagation();Attendance.removeGuest('${f.id}',${session.hour})">✕</button>`
         : '';
         
-      // Если тренировка отменена, показываем причину
       const cancelHtml = f.status === 'cancelled' 
         ? `<span style="display:block; font-size:11px; color:#e63946; margin-top:2px;">Причина: ${f.reason || 'Не указана'}</span>` 
         : '';
@@ -98,7 +93,6 @@ const Attendance = (() => {
       `;
     }).join('');
 
-    // Индивидуальные тренировки можно отметить как "Отменено"
     const cancelBtn = session.mode === 'personal' && !allMarked 
       ? `<button class="ghost small" style="width:100%; margin-top:6px;" onclick="Attendance.markAll('${session.key}', 'cancelled')">🚫 Отменить тренировку (укажет причину)</button>`
       : '';
@@ -193,10 +187,7 @@ const Attendance = (() => {
     const fighter = DB.fighters.find(x => x.id === fighterId);
     if (!fighter) return;
     const slot = (fighter.calendar[viewDate] || []).find(s => s.hour === hour);
-    
-    // Если включили чекбокс, значит статус "присутствовал". Выключили — "отсутствовал".
     const status = present ? 'present' : 'absent';
-    
     setAttendance(fighterId, viewDate, hour, slot ? slot.blockId : '', slot ? slot.mode : '', status);
     render();
   }
@@ -208,7 +199,7 @@ const Attendance = (() => {
     let reason = '';
     if (status === 'cancelled') {
       reason = prompt('Укажите причину отмены (например, болезнь тренера):') || 'Без причины';
-      if (reason === null) return; // Отменили ввод
+      if (reason === null) return;
     }
 
     session.fighters.forEach(f => {
@@ -218,7 +209,6 @@ const Attendance = (() => {
     render();
   }
 
-  // Оставил старые функции для копирования текста
   function copySession(sessionKey) {
     const session = getTrainingSessions(viewDate).find(s => s.key === sessionKey);
     if (session) copyToClipboard(formatSessionText(session));

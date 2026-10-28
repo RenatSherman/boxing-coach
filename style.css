@@ -41,8 +41,12 @@ main { padding: 16px; padding-bottom: 100px; max-width: 1400px; margin: 0 auto; 
 .fighters-group-acc { background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.06); border: 1px solid #eee; overflow: hidden; }
 .fighters-group-acc summary { padding: 14px 16px; font-size: 16px; font-weight: 600; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; user-select: none; }
 .fighters-group-acc summary::-webkit-details-marker { display: none; }
-.fighters-group-acc summary::after { content: '▾'; font-size: 14px; transition: transform 0.2s; color: #888; }
-.fighters-group-acc[open] summary::after { transform: rotate(180deg); }
+
+/* Стрелочка теперь рядом с числом бойцов */
+.summary-left { display: flex; align-items: center; gap: 8px; flex: 1; }
+.summary-left::after { content: '▾'; font-size: 14px; color: #888; transition: transform 0.2s; margin-left: 4px; }
+.fighters-group-acc[open] .summary-left::after { transform: rotate(180deg); }
+
 .fighters-group-acc[open] summary { border-bottom: 1px solid #f0f0f0; }
 .badge-count { background: #e5e7eb; color: #374151; font-size: 12px; padding: 2px 8px; border-radius: 10px; }
 .group-actions-mini { display: flex; gap: 4px; }
@@ -66,18 +70,19 @@ button.ghost { background: #eee; color: #111; }
 .profile-card { border-top: 4px solid #e63946; }
 .profile-card input, .profile-card select { background: #fafafa; }
 
-/* Оценки в виде карточек */
 .assess-history-list { display: flex; flex-direction: column; gap: 10px; }
 .assess-history-item { background: #fff; border-radius: 10px; padding: 12px; border-left: 4px solid #ccc; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
 
-/* ===== Календарь бойца ===== */
+/* ===== Календарь бойца (ИСПРАВЛЕНА ВЫСОТА КВАДРАТИКОВ) ===== */
 .cal-toolbar { display: flex; gap: 8px; align-items: center; margin: 10px 0; flex-wrap: wrap; }
 .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
 .cal-head { font-weight: 600; text-align: center; padding: 6px 2px; background: #111; color: #fff; border-radius: 4px; font-size: 12px; }
-.cal-day { background: #fff; min-height: 90px; padding: 4px; border-radius: 6px; font-size: 11px; display: flex; flex-direction: column; border: 1px solid #eee; position: relative; }
+.cal-day { background: #fff; min-height: 110px; padding: 4px; border-radius: 6px; font-size: 11px; display: flex; flex-direction: column; border: 1px solid #eee; position: relative; }
 .cal-day.today { border-color: #e63946; background: #fff5f6; }
-.slots { flex: 1; display: flex; flex-direction: column; gap: 2px; margin-bottom: 20px; }
-.slot { padding: 2px 4px; border-radius: 4px; cursor: pointer; font-size: 10px; overflow: hidden; text-overflow: ellipsis; border-left: 2px solid #999; }
+.slots { flex: 1; display: flex; flex-direction: column; gap: 2px; margin-bottom: 20px; overflow: hidden; }
+.slot { padding: 2px 4px; border-radius: 4px; cursor: pointer; font-size: 10px; overflow: hidden; border-left: 2px solid #999; display: flex; flex-direction: column; }
+.slot-title { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.slot-comment { font-size: 9px; color: #666; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; margin-top: 2px; }
 .slot.self { background: #FEF3C7; border-color: #F59E0B; color: #78350F; }
 .slot.personal { background: #FCE7F3; border-color: #EC4899; color: #831843; }
 .slot.group { background: #DBEAFE; border-color: #3B82F6; color: #1E3A8A; }

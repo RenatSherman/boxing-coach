@@ -20,7 +20,7 @@ function renderFighters() {
       ${groups.map(g => `
         <details class="fighters-group-acc">
           <summary>
-            <div style="display:flex; align-items:center; gap:8px;">
+            <div class="summary-left">
               <b>${g.name}</b>
               <span class="badge-count">${g.fighters.length}</span>
             </div>
