@@ -14,7 +14,7 @@ const Reports = (() => {
   function collect(year, month) {
     const rows = DB.fighters.map(f => {
       let total = 0, personal = 0, self = 0, group = 0;
-      Object.entries(f.calendar).forEach(([date, slots]) => {
+      Object.entries(f.calendar || {}).forEach(([date, slots]) => {
         const dt = new Date(date);
         if (dt.getFullYear() === year && dt.getMonth() === month) {
           slots.forEach(s => {
@@ -25,7 +25,6 @@ const Reports = (() => {
           });
         }
       });
-      // Посещаемость
       const att = getAttendanceStatsMonth(f, year, month);
       return {
         id: f.id, name: f.name, group: f.group,
@@ -49,7 +48,7 @@ const Reports = (() => {
     const days = new Date(year, month + 1, 0).getDate();
     const arr = Array(days).fill(0);
     DB.fighters.forEach(f => {
-      Object.entries(f.calendar).forEach(([date, slots]) => {
+      Object.entries(f.calendar || {}).forEach(([date, slots]) => {
         const dt = new Date(date);
         if (dt.getFullYear() === year && dt.getMonth() === month) {
           arr[dt.getDate() - 1] += slots.length;
@@ -102,13 +101,17 @@ const Reports = (() => {
           data: {
             labels,
             datasets: [{
-              label: 'Тренировок в день',
+              label: 'Тренировок',
               data: weekData,
               borderColor: '#4A90E2',
               backgroundColor: 'rgba(135,206,235,.3)',
               tension: .3,
               fill: true
             }]
+          },
+          options: {
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } }
           }
         });
       }
@@ -124,59 +127,74 @@ const Reports = (() => {
               data: [sum.self, sum.personal, sum.group],
               backgroundColor: ['#F59E0B','#EC4899','#3B82F6']
             }]
+          },
+          options: {
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'right' } }
           }
         });
       }
     }, 50);
 
     return `
-      <h2>Отчёт — ${monthName(currentMonth)} ${currentYear}</h2>
-      <div class="cal-toolbar">
-        <button onclick="Reports.shift(-1)">‹</button>
-        <b>${monthName(currentMonth)} ${currentYear}</b>
-        <button onclick="Reports.shift(1)">›</button>
-        <button onclick="exportReportPDF(${currentYear},${currentMonth})">📄 Краткий отчёт</button>
-        <button onclick="exportMonthReportFullPDF(${currentYear},${currentMonth})">📊 Полный отчёт тренера</button>
+      <h2>Отчёт</h2>
+      <div class="cal-toolbar" style="justify-content: space-between;">
+        <div>
+          <button onclick="Reports.shift(-1)">‹</button>
+          <b>${monthName(currentMonth)} ${currentYear}</b>
+          <button onclick="Reports.shift(1)">›</button>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <button class="small" onclick="exportReportPDF(${currentYear},${currentMonth})">📄 Краткий</button>
+          <button class="small" onclick="exportMonthReportFullPDF(${currentYear},${currentMonth})">📊 Полный</button>
+        </div>
       </div>
 
-      <div class="grid">
-        <div class="card"><h3>Всего тренировок</h3><p class="big">${sum.total}</p></div>
-        <div class="card"><h3>Персональных</h3><p class="big">${sum.personal}</p></div>
-        <div class="card"><h3>Групповых</h3><p class="big">${sum.group}</p></div>
-        <div class="card"><h3>Посещаемость</h3><p class="big">${sum.attPercent}%</p>
-          <small style="color:#666;">${sum.attPresent} из ${sum.attTotal}</small>
+      <div class="grid" style="margin-bottom: 16px;">
+        <div class="card" style="padding:12px; text-align:center;">
+          <div style="font-size:12px; color:#666;">Всего тренировок</div>
+          <p class="big" style="font-size:24px; margin-top:4px;">${sum.total}</p>
+        </div>
+        <div class="card" style="padding:12px; text-align:center;">
+          <div style="font-size:12px; color:#666;">Посещаемость</div>
+          <p class="big" style="font-size:24px; color:#22c55e; margin-top:4px;">${sum.attPercent}%</p>
         </div>
       </div>
 
       <h3>По дням месяца</h3>
-      <canvas id="repDays" height="100"></canvas>
+      <div class="report-chart-wrap">
+        <canvas id="repDays"></canvas>
+      </div>
 
-      <h3>Распределение по формату</h3>
-      <canvas id="repModes" height="100"></canvas>
+      <h3>Распределение</h3>
+      <div class="report-chart-wrap" style="height: 180px;">
+        <canvas id="repModes"></canvas>
+      </div>
 
-      <h3>По бойцам</h3>
-      <table>
-        <tr>
-          <th>Боец</th><th>Группа</th><th>Тренировок</th>
-          <th>Индивид.</th><th>Группа</th><th>Самост.</th>
-          <th>Посещений</th><th>%</th><th></th>
-        </tr>
+      <h3 style="margin-top:20px;">По бойцам</h3>
+      <div class="report-cards-list">
         ${rows.map(r => `
-          <tr>
-            <td>${r.name}</td>
-            <td>${groupShort(r.group)}</td>
-            <td>${r.total}</td>
-            <td>${r.personal}</td>
-            <td>${r.group}</td>
-            <td>${r.self}</td>
-            <td>${r.attPresent} / ${r.attTotal}</td>
-            <td>${r.attPercent}%</td>
-            <td>
-              <button onclick="exportFighterMonthPDF('${r.id}',${currentYear},${currentMonth})">PDF</button>
-            </td>
-          </tr>
+          <div class="report-card">
+            <div class="report-card-header">
+              <b>${r.name}</b>
+              <span class="report-group">${groupShort(r.group)}</span>
+            </div>
+            
+            <div class="report-stats">
+              <div class="r-stat"><span>Тренировок</span><b>${r.total}</b></div>
+              <div class="r-stat"><span>Индивид.</span><b>${r.personal}</b></div>
+              <div class="r-stat"><span>Группа</span><b>${r.group}</b></div>
+              <div class="r-stat"><span>Самост.</span><b>${r.self}</b></div>
+              <div class="r-stat"><span>Посещений</span><b>${r.attPresent}/${r.attTotal}</b></div>
+              <div class="r-stat"><span>%</span><b>${r.attPercent}%</b></div>
+            </div>
+            
+            <button class="ghost small" style="width:100%; margin-top:10px;" onclick="exportFighterMonthPDF('${r.id}',${currentYear},${currentMonth})">
+              📄 Скачать PDF
+            </button>
+          </div>
         `).join('')}
-      </table>
+      </div>
     `;
   }
 
