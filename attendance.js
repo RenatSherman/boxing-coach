@@ -3,7 +3,7 @@
    ============================================================ */
 
 const Attendance = (() => {
-  // Жестко ставим сегодняшнюю дату при загрузке
+  // Принудительно ставим сегодняшнюю дату при каждом вызове
   let viewDate = todayStr();
 
   function shiftDate(delta) {
@@ -15,7 +15,6 @@ const Attendance = (() => {
   
   function setToday() { 
     viewDate = todayStr(); 
-    render(); 
   }
   
   function setDate(ds) { 
@@ -23,7 +22,7 @@ const Attendance = (() => {
   }
 
   function render() {
-    // Принудительная проверка: если дата пустая, ставим сегодня
+    // Жестко ставим сегодняшнюю дату, если она пустая
     if (!viewDate || viewDate === 'undefined') viewDate = todayStr();
 
     const sessions = getTrainingSessions(viewDate);
@@ -39,7 +38,7 @@ const Attendance = (() => {
         <b style="text-transform: capitalize;">${dateLabel}</b>
         <div style="display:flex; gap:6px; width:100%;">
           <button class="ghost small" style="flex:1;" onclick="Attendance.shiftDate(-1)">‹ Вчера</button>
-          <button class="ghost small" style="flex:1;" onclick="Attendance.setToday()">Сегодня</button>
+          <button class="ghost small" style="flex:1;" onclick="Attendance.setToday();render()">Сегодня</button>
           <button class="ghost small" style="flex:1;" onclick="Attendance.shiftDate(1)">Завтра ›</button>
         </div>
         <input type="date" value="${viewDate}" onchange="Attendance.setDate(this.value)" style="margin-top:8px;">

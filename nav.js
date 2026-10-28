@@ -22,10 +22,10 @@ document.addEventListener('DOMContentLoaded', () => {
       
       // Если переходим в Отметку, сначала сбрасываем дату, потом рендерим
       if (state.tab === 'attendance' && window.Attendance) {
-        Attendance.setToday(); // Это изменит viewDate на todayStr() без рендера
+        Attendance.setToday(); 
       }
       
-      render(); // Рендерим вкладку
+      render();
     };
   });
 });
