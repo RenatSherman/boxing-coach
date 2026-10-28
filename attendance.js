@@ -3,8 +3,8 @@
    ============================================================ */
 
 const Attendance = (() => {
+  // Принудительно ставим сегодняшнюю дату при каждом вызове
   let viewDate = todayStr();
-  let initialized = false;
 
   function shiftDate(delta) {
     const d = new Date(viewDate + 'T00:00:00');
@@ -12,15 +12,19 @@ const Attendance = (() => {
     viewDate = dateStr(d);
     render();
   }
-  function setToday() { viewDate = todayStr(); render(); }
-  function setDate(ds) { if (ds) { viewDate = ds; render(); } }
+  
+  function setToday() { 
+    viewDate = todayStr(); 
+    render(); 
+  }
+  
+  function setDate(ds) { 
+    if (ds) { viewDate = ds; render(); } 
+  }
 
   function render() {
-    // Принудительно ставим актуальную дату, если мы только что зашли на вкладку
-    if (!initialized) {
-      viewDate = todayStr();
-      initialized = true;
-    }
+    // Если по какой-то причине дата сбросилась в пустоту, ставим сегодня
+    if (!viewDate) viewDate = todayStr();
 
     const sessions = getTrainingSessions(viewDate);
     const dateObj = new Date(viewDate + 'T00:00:00');
@@ -71,34 +75,9 @@ const Attendance = (() => {
     const allMarked = session.fighters.every(f => f.status !== null);
     const title = session.mode === 'group' ? groupName(session.group) : (session.fighters[0]?.name || 'Индивидуально');
 
-    const checklistHtml = session.fighters.map(f => {
-      const checked = f.status === 'present' ? 'checked' : '';
-      const cls = f.status === 'present' ? 'checked' : '';
-      const guestClass = f.isGuest ? 'guest' : '';
-      const guestBadge = f.isGuest ? '<span class="att-guest-badge">➕ Внепл.</span>' : '';
-      const removeBtn = f.isGuest
-        ? `<button class="small danger" style="margin-left:8px; padding:4px 8px;" onclick="event.preventDefault();event.stopPropagation();Attendance.removeGuest('${f.id}',${session.hour})">✕</button>`
-        : '';
-        
-      const cancelHtml = f.status === 'cancelled' 
-        ? `<span style="display:block; font-size:11px; color:#e63946; margin-top:2px;">Причина: ${f.reason || 'Не указана'}</span>` 
-        : '';
-
-      return `
-        <label class="att-check-item ${cls} ${guestClass}">
-          <input type="checkbox" ${checked} onchange="Attendance.toggle('${f.id}', ${session.hour}, this.checked)">
-          <span class="att-name">${f.name}${guestBadge}${cancelHtml}</span>
-          ${removeBtn}
-        </label>
-      `;
-    }).join('');
-
-    const cancelBtn = session.mode === 'personal' && !allMarked 
-      ? `<button class="ghost small" style="width:100%; margin-top:6px;" onclick="Attendance.markAll('${session.key}', 'cancelled')">🚫 Отменить тренировку (укажет причину)</button>`
-      : '';
-
+    // ВАЖНО: используем тег <details> для аккордеона
     return `
-      <details class="att-card ${allMarked ? 'done' : ''}" open>
+      <details class="att-card ${allMarked ? 'done' : ''}">
         <summary class="att-card-header">
           <div>
             <h3>${title}</h3>
@@ -117,7 +96,27 @@ const Attendance = (() => {
         </div>
         
         <div class="att-checklist">
-          ${checklistHtml}
+          ${session.fighters.map(f => {
+            const checked = f.status === 'present' ? 'checked' : '';
+            const cls = f.status === 'present' ? 'checked' : '';
+            const guestClass = f.isGuest ? 'guest' : '';
+            const guestBadge = f.isGuest ? '<span class="att-guest-badge">➕ Внепл.</span>' : '';
+            const removeBtn = f.isGuest
+              ? `<button class="small danger" style="margin-left:8px; padding:4px 8px;" onclick="event.preventDefault();event.stopPropagation();Attendance.removeGuest('${f.id}',${session.hour})">✕</button>`
+              : '';
+              
+            const cancelHtml = f.status === 'cancelled' 
+              ? `<span style="display:block; font-size:11px; color:#e63946; margin-top:2px;">Причина: ${f.reason || 'Не указана'}</span>` 
+              : '';
+
+            return `
+              <label class="att-check-item ${cls} ${guestClass}">
+                <input type="checkbox" ${checked} onchange="Attendance.toggle('${f.id}', ${session.hour}, this.checked)">
+                <span class="att-name">${f.name}${guestBadge}${cancelHtml}</span>
+                ${removeBtn}
+              </label>
+            `;
+          }).join('')}
         </div>
         
         <div class="att-actions">
@@ -125,7 +124,9 @@ const Attendance = (() => {
           <button class="ghost small" onclick="Attendance.markAll('${session.key}', 'absent')">✗ Никого</button>
           <button class="small" onclick="Attendance.openAddGuest('${session.key}')">➕ Добавить</button>
         </div>
-        ${cancelBtn}
+        ${session.mode === 'personal' && !allMarked 
+          ? `<button class="ghost small" style="width:calc(100% - 32px); margin: 0 16px 16px; display:block;" onclick="Attendance.markAll('${session.key}', 'cancelled')">🚫 Отменить тренировку</button>`
+          : ''}
       </details>
     `;
   }
@@ -198,14 +199,14 @@ const Attendance = (() => {
 
     let reason = '';
     if (status === 'cancelled') {
-      reason = prompt('Укажите причину отмены (например, болезнь тренера):') || 'Без причины';
+      reason = prompt('Укажите причину отмены (например, болезнь):') || 'Без причины';
       if (reason === null) return;
     }
 
     session.fighters.forEach(f => {
       setAttendance(f.id, session.date, session.hour, session.blockId, session.mode, status, reason);
     });
-    toast(status === 'cancelled' ? 'Тренировка отменена' : 'Статус обновлен', 'ok');
+    toast(status === 'cancelled' ? 'Отменено' : 'Статус обновлен', 'ok');
     render();
   }
 

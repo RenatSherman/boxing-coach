@@ -6,7 +6,6 @@ const state = { tab: 'dashboard', currentFighter: null, exTab: 'exercises' };
 
 /* ================== НАВИГАЦИЯ ================== */
 function setActiveTab(tab) {
-  // Ищем кнопки в любом месте документа, у которых есть data-tab
   document.querySelectorAll('button[data-tab]').forEach(x => {
     x.classList.toggle('active', x.dataset.tab === tab);
   });
@@ -15,13 +14,18 @@ function setActiveTab(tab) {
 document.addEventListener('DOMContentLoaded', () => {
   app = document.getElementById('app');
 
-  // Навешиваем обработчики на все кнопки меню
   document.querySelectorAll('button[data-tab]').forEach(b => {
     b.onclick = () => {
       state.tab = b.dataset.tab;
       state.currentFighter = null;
       setActiveTab(state.tab);
-      render();
+      
+      // Если переходим в Отметку, сбрасываем дату на сегодня
+      if (state.tab === 'attendance' && window.Attendance) {
+        Attendance.setToday(); 
+      } else {
+        render();
+      }
     };
   });
 });
@@ -82,10 +86,8 @@ const LockScreen = (() => {
     return msg;
   }
   function init() {
-    const passInput = document.getElementById('loginPass');
-    if (passInput) passInput.onkeydown = e => { if (e.key === 'Enter') doLogin(); };
-    const regInput = document.getElementById('regPass2');
-    if (regInput) regInput.onkeydown = e => { if (e.key === 'Enter') doRegister(); };
+    document.getElementById('loginPass').onkeydown = e => { if (e.key === 'Enter') doLogin(); };
+    document.getElementById('regPass2').onkeydown = e => { if (e.key === 'Enter') doRegister(); };
   }
   return { init, showTab, doLogin, doRegister };
 })();
@@ -114,7 +116,6 @@ function render() {
     console.error('[render] Ошибка:', e);
     app.innerHTML = `<div class="card" style="border-left:4px solid #dc2626;background:#fef2f2;padding:16px;">
         <h3 style="margin-top:0;color:#991b1b;">Ошибка в разделе «${state.tab}»</h3>
-        <p>${e.message}</p>
-        <pre style="background:#fff;padding:10px;border-radius:6px;font-size:12px;overflow:auto;">${(e.stack || '').split('\n').slice(0,5).join('\n')}</pre></div>`;
+        <p>${e.message}</p></div>`;
   }
 }
