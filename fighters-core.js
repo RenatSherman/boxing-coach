@@ -9,7 +9,13 @@ function addTraining(fighterIds, dateStr, hour, blockId, mode, comment) {
     const f = DB.fighters.find(x => x.id === id);
     if (!f) return;
     f.calendar[dateStr] = f.calendar[dateStr] || [];
-    f.calendar[dateStr].push({ hour, blockId: blockId || '', mode, comment: comment || '' });
+    f.calendar[dateStr].push({ 
+      hour, 
+      blockId: blockId || '', 
+      mode, 
+      comment: comment || ''
+      // Убрали guest: true. Теперь это обычный участник.
+    });
     added++;
   });
   if (added > 0) saveData(DB);
@@ -29,7 +35,8 @@ window.openAssignTrainingModal = (presetFighterId, presetDate, presetHour) => {
   const groupsHtml = groupsForList.map(g => `
     <details class="tr-group-details">
       <summary class="tr-group-summary">
-        ${g.name} <span class="badge-count">${g.fighters.length}</span>
+        <span>${g.name}</span>
+        <span class="badge-count" style="margin-right:8px;">${g.fighters.length}</span>
       </summary>
       <div class="tr-group-content">
         ${g.fighters.map(f => `
@@ -121,9 +128,9 @@ window.openAssignTrainingModal = (presetFighterId, presetDate, presetHour) => {
         </div>
       </div>
 
-      <!-- Кнопка добавления гостя из другой группы -->
+      <!-- Кнопка добавления бойца из другой группы -->
       <button type="button" class="ghost small" style="width:100%; margin-top:12px; border:1px dashed #ccc;" onclick="addGuestToTrainingModal()">
-        ➕ Добавить бойца из другой группы (как гостя)
+        ➕ Добавить бойца из другой группы
       </button>
 
       <div class="modal-actions" style="margin-top:20px;">
@@ -253,7 +260,7 @@ window.submitAssignTraining = () => {
   else render();
 };
 
-// Функция добавления гостя из другой группы
+// Функция добавления бойца из другой группы
 window.addGuestToTrainingModal = () => {
   const modalContent = document.querySelector('.modal');
   if (!modalContent) return;
@@ -275,9 +282,9 @@ window.addGuestToTrainingModal = () => {
     </div>
   `).join('');
 
-  // Меняем контент на выбор гостя
+  // Меняем контент на выбор бойца
   modalContent.innerHTML = `
-    <h3>Добавить гостя</h3>
+    <h3>Добавить бойца из другой группы</h3>
     <p style="font-size:13px; color:#666; margin-bottom:12px;">Выберите бойца из любой группы, чтобы добавить его к текущей тренировке.</p>
     <div class="guest-list" style="max-height:400px; overflow-y:auto; border:1px solid #eee; border-radius:8px; padding:8px; margin-bottom:16px;">
       ${groupsHtml}
@@ -300,10 +307,12 @@ window.confirmAddGuest = () => {
     const allCheckboxes = [...document.querySelectorAll('#tr_dropdown_menu .tr_fighter')];
     checks.forEach(guestCheck => {
       const cb = allCheckboxes.find(c => c.value === guestCheck.value);
-      if (cb) cb.checked = true;
+      if (cb) {
+        cb.checked = true;
+      }
     });
     updateFightersDropdownText();
-    toast('Гость добавлен в список', 'ok');
+    toast('Боец добавлен в список', 'ok');
   }, 50);
 };
 
